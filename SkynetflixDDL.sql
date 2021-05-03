@@ -93,7 +93,7 @@ create table history
     user_id INTEGER references users(id),
     movie_id INTEGER references movie(id),
     watch_time date,
-    is_finished boolean,
+    --is_finished boolean,
     PRIMARY KEY( user_id, movie_id)
 );
 
