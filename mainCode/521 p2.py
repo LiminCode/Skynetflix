@@ -1,6 +1,5 @@
 """
 TO DO
-	* certain functions should have autocommit off and be treated as transactions
 	* specific error handling
 	* print formatting
 """
@@ -140,7 +139,8 @@ def custom_select(prompt, matcher, msg=None)
 					msg = f'{msg}: re-enter here:'
 				printc('r',msg)
 		except Exception as e:
-			printc('r', str(e))
+# 			printc('r', 'custom_select error: '+repr(e))
+			raise
 		else:
 			return i, r
 
@@ -274,7 +274,7 @@ def list_genres(conn):
 				print(info)
 				print('-' * 70)
 		except Exception as e:
-			print('error occcured:',repr(e))
+			print('list_genres: error:',repr(e))
 
 def get_active_movies(
 	conn, * , fields = PRIMARY_FIELDS + ('keywords',),
@@ -296,7 +296,7 @@ def get_active_movies(
 	f = {f:i for f,i in zip(fields,menu_selections(*fields))}
 	
 	parse_genre(f, where, values)
-	parse_dates('release_time', where, values)
+	parse_dates('date_produced', where, values)
 	
 	keywords = f.get('keywords')
 	if keywords:
@@ -307,7 +307,7 @@ def get_active_movies(
 	
 	count = filter_return_count(f, values)
 	
-	where.append('active=true') # filter movies that are available for streaming
+	where.append('available=true') # filter movies that are available for streaming
 	
 	where = f'WHERE {" AND ".join(where)}' if where else ''
 	
@@ -323,7 +323,7 @@ def get_active_movies(
 			)
 			print('*** CURSOR RESULTS:',list(cur)) #"<PRINT THE RESULTS>"
 		except Exception as e:
-			print('error occcured:',repr(e))
+			print('get_active_movies: error:',repr(e))
 
 # 	Who are the most popular actors?
 # 		+ Which actors star in the most movies in a given time?
@@ -335,7 +335,7 @@ def get_busiest_actors(conn, * , fields = PRIMARY_FIELDS)
 	f = {f:i for f,i in zip(fields,menu_selections(*fields))}
 	
 	parse_genre(f, where, values)
-	parse_dates('release_time', where, values)
+	parse_dates('date_produced', where, values)
 	count = filter_return_count(f, values)
 	
 	where = f'WHERE {" AND ".join(where)}' if where else ''
@@ -358,7 +358,7 @@ def get_busiest_actors(conn, * , fields = PRIMARY_FIELDS)
 			)
 			print('*** CURSOR RESULTS:',list(cur)) #"<PRINT THE RESULTS>"
 		except Exception as e:
-			print('error occcured:',repr(e))
+			print('get_busiest_actors: error:',repr(e))
 
 # 	Which actors have the highest associated movie ratings?
 # 		* Calculate an actor's rating as the average rating across all the movies he starred in
@@ -368,7 +368,7 @@ def get_highest_rated_actors(conn, * , fields = PRIMARY_FIELDS):
 	f = {f:i for f,i in zip(fields,menu_selections(*fields))}
 	
 	parse_genre(f, where, values)
-	parse_dates('release_time', where, values)
+	parse_dates('date_produced', where, values)
 	count = filter_return_count(f, values)
 	
 	where = f'WHERE {" AND ".join(where)}' if where else ''
@@ -383,7 +383,7 @@ def get_highest_rated_actors(conn, * , fields = PRIMARY_FIELDS):
 				FROM
 					actors A
 					JOIN act ON (act.actor_id = A.id)
-					JOIN movies ON (act.movie_id = movies.id)
+					JOIN movie ON (act.movie_id = movie.id)
 				{where}
 				GROUP BY name
 				{count};
@@ -392,7 +392,7 @@ def get_highest_rated_actors(conn, * , fields = PRIMARY_FIELDS):
 			)
 			print('*** CURSOR RESULTS:',list(cur)) #"<PRINT THE RESULTS>"
 		except Exception as e:
-			print('error occcured:',repr(e))
+			print('get_highest_rated_actors: error:',repr(e))
 
 # 	Which directors have the highest associated movie ratings?
 # 		+ Calculate a director's rating as the average rating across all the movies he directed
@@ -402,7 +402,7 @@ def get_highest_rated_directors(conn, * , fields = PRIMARY_FIELDS):
 	f = {f:i for f,i in zip(fields,menu_selections(*fields))}
 	
 	parse_genre(f, where, values)
-	parse_dates('release_time', where, values)
+	parse_dates('date_produced', where, values)
 	count = filter_return_count(f, values)
 	
 	where = f'WHERE {" AND ".join(where)}' if where else ''
@@ -416,7 +416,7 @@ def get_highest_rated_directors(conn, * , fields = PRIMARY_FIELDS):
 					AVG(average_rating) avg_rating
 				FROM
 					directors D
-					JOIN movies ON (D.id = movies.director_id)
+					JOIN movie ON (D.id = movie.director_id)
 				{where}
 				GROUP BY name
 				{count};
@@ -425,7 +425,7 @@ def get_highest_rated_directors(conn, * , fields = PRIMARY_FIELDS):
 			)
 			print('*** CURSOR RESULTS:',list(cur)) #"<PRINT THE RESULTS>"
 		except Exception as e:
-			print('error occcured:',repr(e))
+			print('get_highest_rated_directors: error:',repr(e))
 
 # 	Which movies are the most popular in a given time frame?
 def get_popular_movies(conn, *, fields = PRIMARY_FIELDS):
@@ -436,7 +436,7 @@ def get_popular_movies(conn, *, fields = PRIMARY_FIELDS):
 	f = {f:i for f,i in zip(fields,menu_selections(*fields))}
 	
 	parse_genre(f, where, values)
-	parse_dates('<watch date>', where, values)
+	parse_dates('watch_time', where, values)
 	count = filter_return_count(f, values)
 	
 	where = f'WHERE {" AND ".join(where)}' if where else ''
@@ -445,19 +445,19 @@ def get_popular_movies(conn, *, fields = PRIMARY_FIELDS):
 		try:
 			cur.execute(
 				f"""
-				SELECT M.<movie name>, COUNT(*) num_watches
-				FROM <history table> H
-					JOIN <movies table> M
-					ON (M.<movie id> = H.<movie id>)
+				SELECT M.title, COUNT(*) num_watches
+				FROM history H
+					JOIN movie M
+					ON (M.id = H.movie_id)
 				{where}
-				GROUP BY <M.movie id>
+				GROUP BY M.id
 				ORDER BY COUNT(*) DESC
 				{count};""",
 				values
 			)
 			print('*** CURSOR RESULTS:',list(cur)) #"<PRINT THE RESULTS>"
 		except Exception as e:
-			print('error occcured:',repr(e))
+			print('get_popular_movies: error:',repr(e))
 
 # 	Who directs the most movies in a given time frame?
 def get_busiest_directors(conn, *, fields = PRIMARY_FIELDS):
@@ -468,7 +468,7 @@ def get_busiest_directors(conn, *, fields = PRIMARY_FIELDS):
 	f = {f:i for f,i in zip(fields,menu_selections(*fields))}
 	
 	parse_genre(f, where, values)
-	parse_dates('release_time', where, values)
+	parse_dates('date_produced', where, values)
 	count = filter_return_count(f, values)
 	
 	where = f'WHERE {" AND ".join(where)}' if where else ''
@@ -477,19 +477,21 @@ def get_busiest_directors(conn, *, fields = PRIMARY_FIELDS):
 		try:
 			cur.execute(
 				f"""
-				SELECT D.<director name>, COUNT(*) num_movies_directed
-				FROM <director table> D
-					JOIN <movies table> M
-					ON (D.<director id> = M.<director id>)
+				SELECT
+					D.first_name || ' ' || D.last_name AS name,
+					COUNT(*) num_movies_directed
+				FROM director D
+					JOIN movie M
+					ON (D.id = M.director_id)
 				{where}
-				GROUP BY <director name>
+				GROUP BY name
 				ORDER BY COUNT(*) DESC
 				{count};""",
 				values
 			)
 			print('*** CURSOR RESULTS:',list(cur)) #"<PRINT THE RESULTS>"
 		except Exception as e:
-			print('error occcured:',repr(e))
+			print('get_busiest_directors: error:',repr(e))
 
 
 # 	Which users watch the most movies (of a certain genre) in a given time frame?
@@ -501,7 +503,7 @@ def get_busiest_users(conn, *, fields = PRIMARY_FIEDS):
 	f = {f:i for f,i in zip(fields,menu_selections(*fields))}
 	
 	parse_genre(f, where, values)
-	parse_dates('<watch date>', where, values)
+	parse_dates('watch_time', where, values)
 	count = filter_return_count(f, values)
 	
 	where = f'WHERE {" AND ".join(where)}' if where else ''
@@ -510,17 +512,17 @@ def get_busiest_users(conn, *, fields = PRIMARY_FIEDS):
 		try:
 			cur.execute(
 				f"""
-				SELECT <user id>, COUNT(*) num_watches
-				FROM <history table>
+				SELECT user_id, COUNT(*) num_watches
+				FROM history
 				{where}
-				GROUP BY <user id>
+				GROUP BY user_id
 				ORDER BY COUNT(*) DESC
 				{count};""",
 				values
 			)
 			print('*** CURSOR RESULTS:',list(cur)) #"<PRINT THE RESULTS>"
 		except Exception as e:
-			print('error occcured:',repr(e))
+			print('get_busiest_users: error:',repr(e))
 
 # 	Get highest-rated movie(s) for a given time frame, genre
 def get_highest_rated_movies(
@@ -535,7 +537,7 @@ def get_highest_rated_movies(
 	f = {f:i for f,i in zip(fields,menu_selections(*fields))}
 	
 	parse_genre(f, where, values)
-	parse_dates('release_time', where, values)
+	parse_dates('date_produced', where, values)
 	count = filter_return_count(f, values)
 	
 	where = f'WHERE {" AND ".join(where)}' if where else ''
@@ -548,49 +550,16 @@ def get_highest_rated_movies(
 		try:
 			cur.execute(
 				f"""
-				SELECT <movie name>, <average rating>
-				FROM <movies table>
+				SELECT title, total_rating/total_rating_count AS average_rating
+				FROM movie
 				{where}
-				ORDER BY <average rating> DESC
+				ORDER BY average_rating DESC
 				{count};""",
 				values
 			)
 			print('*** CURSOR RESULTS:',list(cur)) #"<PRINT THE RESULTS>"
 		except Exception as e:
-			print('error occcured:',repr(e))
-
-# 	Get all users who joined in particular date range
-def get_users_by_join_date(conn, *, fields = ('opening date\0', 'closing date\0')):
-	"""Get a list of users according to join date, specifying optionally
-	a window in which users must have joined to be inculded in the results."""
-	where = []
-	values = []
-	f = {f:i for f,i in zip(fields,menu_selections(*fields))}
-	
-	parse_dates('<join date>', where, values)
-	where = f'WHERE {" AND ".join(where)}' if where else ''
-	if not where:
-		printc('b','** NOTE **: no start or end date entered, '
-			   'list of all users returned')
-	with conn.cursor() as cur:
-		# direct input of `direction` by formatting is okay here
-		# `date` should be input with parameterized query since its
-		#     verification is more complex, also psycopg realizes that
-		#     Python's date type should be handled in Postgres as a date type
-		try:
-			cur.execute(
-			f"""
-			SELECT <user id>
-			FROM <user table>
-			{where}
-			ORDER BY <join date> DESC
-			{count};""",
-			values
-			)
-			print('*** CURSOR RESULTS:',list(cur)) #"<PRINT THE RESULTS>"
-		except Exception as e:
-			print('error occcured:',repr(e))
-	
+			print('get_highest_rated_movies: error:',repr(e))
 
 # 	Get all users whose subscriptions are ending within a short time frame (week or month) from the current date
 def ending_subscriptions(conn, *, options = set('dwm'),
@@ -603,8 +572,12 @@ def ending_subscriptions(conn, *, options = set('dwm'),
 		try:
 			cur.execute(
 			f"""
-			SELECT user_id, start_date + month_length AS end_date
-			FROM subscription S JOIN plan P ON (S.plan_name = P.name)
+			SELECT
+				user_id,
+				start_date + month_length AS end_date
+			FROM
+				subscription S
+				JOIN plan P ON (S.plan_name = P.name)
 			WHERE
 				end_date - CURRENT_DATE() > INTEGER {window}
 			ORDER BY end_date DESC;"""
@@ -613,7 +586,7 @@ def ending_subscriptions(conn, *, options = set('dwm'),
 			)
 			print('*** CURSOR RESULTS:',list(cur)) #"<PRINT THE RESULTS>"
 		except Exception as e:
-			print('error occcured:',repr(e))
+			print('ending_subscriptions: error:',repr(e))
 
 # tell how many users are on currently each of the subscription plans
 def generate_subscription_counts(conn):
@@ -633,7 +606,7 @@ def generate_subscription_counts(conn):
 			for plan, count in cur:
 				print(plan, count)
 		except Exception as e:
-			print('error occcured:',repr(e))
+			print('generate_subscription_counts: error:',repr(e))
 
 def subscription_history(conn):
 	"""Generate history of users signing up for subscriptions
@@ -660,16 +633,95 @@ def subscription_history(conn):
 			ORDER BY year DESC, month DESC, plan_name ASC;
 			"""
 			)
-			# pretty print in table
+			# TO DO: pretty print in table
 			for year, group in it.groupby(cur, lambda tup: tup[0]):
 				print(year)
 				for _, month, name, count in group:
 					print('   ', month, name, count)
+		except Exception as e:
+			print('subscription_history: error:', repr(e))
+
+def get_user_current_subscription_window(conn):
+	id = menu_selections('user id')
+	
+	with conn.cursor() as cur:
+		try:
+			cur.execute(
+			"""
+			SELECT
+				start_date,
+				start_date + month_length AS end_date
+			FROM
+				subscription S JOIN plan P ON (S.plan_name = P.name)
+			WHERE
+				user_id = %s AND
+				start_date <= CURRENT_DATE() AND
+				end_date >= CURRENT_DATE();
+			""",
+			(id,)
+			)
+			if next(cur,None) is None:
+				printc('b', f'No subscription found for user {id}')
+		except Exception as e:
+			print('get_user_current_subscription_window: error:',repr(e))
 
 
 
 
 # # # # # # # # # # # # # # # # Updates # # # # # # # # # # # # # # # #
+
+def leave_a_review(conn):
+	"""Leave a review for a particular user on a particular movie.
+	If the user has already reviewed this movie, prompt the user
+	to confirm that he wants to overwrite his previous review."""
+	
+	user_id, movie_id, rating, review = menu_selections(
+		'user id', 'movie id', 'rating (integer from 1-5 inclusive)',
+		'review content (max 256 chars)'
+	)
+	date = dt.date.today()
+	
+	with conn.cursor() as cur:
+		try:
+			cur.execute(
+			"""
+			SELECT user_id,movie_id
+			FROM review
+			WHERE user_id = %s AND movie_id = %s;
+			""",
+			(user_id,movie_id)
+			)
+			if next(cur, None) is None:
+				cur.execute(
+				"""
+				INSERT INTO review
+					(user_id, movie_id, date, rating, content)
+				VALUES (%s, %s, %s, %s, %s);
+				""",
+				(user_id, movie_id, date, rating, review)
+				)
+			else:
+				proceed = simple_select(
+					'WARNING: review already exists for '
+						f'user {user_id} on movie {movie_id}; '
+						'do you want to overwrite it (y/n)?',
+					('y','n'),
+					msg = "input not understood: please enter 'y' or 'n'"
+				)
+				if proceed:
+					cur.execute(
+					"""
+					UDPATE review SET
+						(date, rating, content)
+						=
+						(%s, %s, %s)
+					WHERE
+						user_id = %s AND movie_id = %s;
+					""",
+					(date, rating, review, user_id, movie_id)
+					)
+		except Exception as e:
+			print('leave_a_review: exception:', repr(e))
 
 def sign_user_up_for_plan_today(conn):
 	id, name = menu_selections('user id', 'subscription plan name')
@@ -679,18 +731,23 @@ def sign_user_up_for_plan_today(conn):
 		try:
 			cur.execute(
 			"""
-			INSERT INTO subscription
-				(user_id, plan_name, start_date)
-			VALUES (%s, %s, %s);
+			SELECT *
+			FROM subscription S JOIN plan P ON (S.plan_name = plan.name)
+			WHERE
+				user_id = %s AND
+				start_date <= CURRENT_DATE() AND
+				start_date + month_length >= CURRENT_DATE();
 			""",
-			(id, name, date)
+			(id,)
 			)
+			if next(cur,None) is not None:
+				raise ValueError(
+					f'cannot sign up user {id} for new subscription plan starting today; '
+					'that user\'s current subscription has not ended'
+				)
 		except Exception as e:
-			print('error occcured:',repr(e))
-
-def sign_user_up_for_future_plan(conn):
-	name = menu_selections('user id', 'subscription plan name')
-	date = custom_select("Enter a date past the current date", get_future_date)[1]
+			print('sign_user_up_for_plan_today: error:',repr(e))
+			return
 	
 	with conn.cursor() as cur:
 		try:
@@ -703,7 +760,46 @@ def sign_user_up_for_future_plan(conn):
 			(id, name, date)
 			)
 		except Exception as e:
-			print('error occcured:',repr(e))
+			print('sign_user_up_for_plan_today: error occcured:',repr(e))
+
+def sign_user_up_for_future_plan(conn):
+	id, name = menu_selections('user id', 'subscription plan name')
+	date = custom_select("Enter a date past the current date", get_future_date)[1]
+	
+	with conn.cursor() as cur:
+		try:
+			cur.execute(
+			"""
+			SELECT *
+			FROM subscription S JOIN plan P ON (S.plan_name = plan.name)
+			WHERE
+				user_id = %s AND
+				start_date <= %s AND
+				start_date + month_length >= %s;
+			""",
+			(id, date, date)
+			)
+			if next(cur,None) is not None:
+				raise ValueError(
+					f'cannot sign up user {id} for new subscription plan starting on {date}; '
+					'that user\'s has an overalpping subscription with that date'
+				)
+		except Exception as e:
+			print('sign_user_up_for_plan_today: error:',repr(e))
+			return
+	
+	with conn.cursor() as cur:
+		try:
+			cur.execute(
+			"""
+			INSERT INTO subscription
+				(user_id, plan_name, start_date)
+			VALUES (%s, %s, %s);
+			""",
+			(id, name, date)
+			)
+		except Exception as e:
+			print('sign_user_up_for_future_plan: error occcured:',repr(e))
 
 # Add a new user
 def add_user(conn):
@@ -727,7 +823,7 @@ def add_user(conn):
 			)
 			printc('g',f'added user {cur.fetchone()[0]}')
 		except Exception as e:
-			print('error occcured:',repr(e))
+			print('add_user: error:',repr(e))
 
 # Remove user
 def remove_user(conn):
@@ -744,7 +840,7 @@ def remove_user(conn):
 			)
 			printc('g',f'deleted user {id}')
 		except Exception as e:
-			print('error occcured:',repr(e))
+			print('remove_user: error:',repr(e))
 
 # Delist a movie
 def delist_movie(conn):
@@ -754,11 +850,11 @@ def delist_movie(conn):
 	with conn.cursor() as cur:
 		try:
 			cur.execute(
-			"""UPDATE movies SET active VALUES (false);"""
+			"""UPDATE movies SET available = 'false';"""
 			)
 			print('operation successful') #"<PRINT SUCCESS>"
 		except Exception as e:
-			print('error occcured:',repr(e))
+			print('delist_movie: error:',repr(e))
 
 # relist a movie
 def relist_movie(conn):
@@ -769,11 +865,11 @@ def relist_movie(conn):
 	with conn.cursor() as cur:
 		try:
 			cur.execute(
-			"""UPDATE movies SET active VALUES (true);"""
+			"""UPDATE movies SET available = 'true';"""
 			)
 			print('operation successful') #"<PRINT SUCCESS>"
 		except Exception as e:
-			print('error occcured:',repr(e))
+			print('relist_movie: error:',repr(e))
 
 # Add a new movie, requiring that actors be specified in addition to fields in 'movies' table
 def add_movie(conn, *, id_parse = ACTOR_ID_PARSE, info_cap=MAX_INFO_SIZE):
@@ -801,7 +897,7 @@ def add_movie(conn, *, id_parse = ACTOR_ID_PARSE, info_cap=MAX_INFO_SIZE):
 			cur.execute(
 			"""
 			INSERT INTO movies
-				(title, url, director_id, release_time, info)
+				(title, url, director_id, date_produced, info)
 			VALUES (%s, %s, %s, %s, %s) RETURNING id;""",
 			(title, url, director_id, date, info)
 			)
@@ -830,8 +926,8 @@ def add_movie(conn, *, id_parse = ACTOR_ID_PARSE, info_cap=MAX_INFO_SIZE):
 				printc('g',f'{"main "*is_main}actor {id} inserted on movie {movie_id}')
 			conn.commit()
 		except Exception as e:
+			print('add_movie: error:',repr(e))
 			conn.rollback()
-			print('exception occurred:',repr(e))
 			#printc('r', ...)
 			# make sure ROLLBACK if failure
 			...
@@ -846,14 +942,14 @@ def add_director(conn):
 		try:
 			cur.execute(
 			"""
-			INSERT INTO actor
-				(fisrt_name, last_name)
-			VALUES (%s, %s);
+			INSERT INTO director
+				(first_name, last_name, info)
+			VALUES (%s, %s, %s);
 			"""
-			(first,last)
+			(first, last, info)
 			)
-		except Exception
-			...
+		except Exception as e:
+			print('add_director: error:',repr(e))
 
 # Add new actors to an already existing movie
 def add_actors_to_movie(conn, *, id_parse = ACTOR_ID_PARSE):
@@ -888,10 +984,10 @@ def add_actors_to_movie(conn, *, id_parse = ACTOR_ID_PARSE):
 					)
 			# COMMIT changes
 			conn.commit()
-		except Exception:
+		except Exception as e:
+			print('add_actors_to_movie: error:', repr(e))
 			conn.rollback()
-			printc('r', ...)
-			...
+			
 	conn.autocommit = True
 
 # Add a new actor
@@ -908,13 +1004,13 @@ def add_actor(conn, *, info_cap=MAX_INFO_SIZE):
 			cur.execute(
 			"""
 			INSERT INTO actor
-				(fisrt_name, last_name)
-			VALUES (%s, %s);
+				(fisrt_name, last_name, info)
+			VALUES (%s, %s, %s);
 			"""
-			(first,last)
+			(first,last, info)
 			)
-		except Exception
-			...
+		except Exception as e:
+			print('add_actor: error:',repr(e))
 
 # record a new event when a user watches a movie
 def track_watch_event(conn, *, fields=('user id','movie id')):
@@ -932,26 +1028,66 @@ def track_watch_event(conn, *, fields=('user id','movie id')):
 			)
 			print('operation successful') #"<PRINT SUCCESS>"
 		except Exception as e:
-			print('error occcured:',repr(e))
+			print('track_watch_event: error:',repr(e))
 	
 
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+_func_mapping = {
+	'1':	list_genres,
+	'2':	get_active_movies,
+	'3':	get_busiest_actors,
+	'4':	get_highest_rated_actors,
+	'5':	get_highest_rated_directors,
+	'6':	get_popular_movies,
+	'7':	get_busiest_directors,
+	'8':	get_busiest_users,
+	'9':	get_highest_rated_movies,
+	'10':	ending_subscriptions,
+	'11':	generate_subscription_counts,
+	'12':	subscription_history,
+	'13':	get_user_current_subscription_window,
+	'14':	leave_a_review,
+	'15':	sign_user_up_for_plan_today,
+	'16':	sign_user_up_for_future_plan,
+	'17':	add_user,
+	'18':	remove_user,
+	'19':	delist_movie,
+	'20':	relist_movie,
+	'21':	add_movie,
+	'22':	add_director,
+	'23':	add_actors_to_movie,
+	'24':	add_actor,
+	'25':	track_watch_event
+}
+
 if __name__=='__main__':
-	user = input("Enter user: ")
+	user = input("Enter database user: ")
 	
 	conn = psycopg2.connect(host="localhost", port=5432, \
 		dbname="small_example", user=user)
-	try:
-		
-		conn.autocommit = True # as recommended by documentation
-		
-		cur = conn.cursor()
-		
-		# create indices: movie.release_time, ...
 	
-	except Exception as e:
-		print('top-level exception:', repr(e))
+	conn.autocommit = True # as recommended by documentation
 	
-	finally:
-		conn.close()
+	# create indices: movie.date_produced, ...
 	
-	print('\n-- -- -- -- -- -- -- --\nExiting...')
+	printc('b','**** AVAILABLE FUNCTIONS:')
+	for i,f in sorted((int(i),f) for i,f in _func_mapping.items()):
+		printc('dg',f.__name__.replace('_',' '))
+	
+	while True:
+		try:
+			f = input('enter an integer to call a function, or \'q\' to exit')
+			if f=='q':
+				break
+			else:
+				_func_mapping[f](conn)
+		
+		except Exception as e:
+			print('top-level exception:', repr(e))
+	
+	conn.close()
+	
+	printc('b','\n-- -- -- -- -- -- -- --\nExiting...')
