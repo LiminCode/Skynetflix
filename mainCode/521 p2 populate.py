@@ -6,6 +6,61 @@ from psycopg2.extras import execute_batch
 
 import numpy as np
 
+# more portable implementation might use a pypi packaged
+# but this suffices for now
+COLORS = { # for terminal output
+    'r': 91,            # red (bright)
+    'dr': 31,            # red (dark)
+    'o':'38;5;202',        # orange
+    'mac':'38;5;214',    # macaroni
+    'y': 33,            # yellow (darker)
+    'm': 35,            # magenta
+    'g': 32,            # green (medium)
+    'dg':'38;5;22',        # green (dark)
+    'teal': 36,
+    'b':34,             # blue
+    'orchid':'38;5;165',
+    'p':'38;5;56',        # purple
+    'bold': 1,
+    'reset': 0
+}
+
+def as_color(s, c):
+    """Return string surrouded by ANSI codes for outputting colored text.
+    The string to be colored is `s`. The color can be specified by name
+    or by integer value. If a name is provided that is not defined,
+    this function silently returns the original, unmodified string.
+    
+    See e.g. https://en.wikipedia.org/wiki/ANSI_escape_code
+    """
+    if (platform.system()=='Linux'):
+        if isinstance(c,int):
+            return f'\033[{c}m{s}\033[0m'
+        try:
+            return f'\033[{COLORS[c]}m{s}\033[0m'
+        except KeyError:
+            return s
+    else:
+        return s
+
+def as_bold_color(s, c):
+    """Similar to `as_color`, but return string encoded to be bold and colored.
+    `s` and `c` have the same parameterization as in `as_color`.
+    """
+    if (platform.system()=='Linux'):
+        if isinstance(c,int):
+            return f'\033[1m\033[{c}m{s}\033[0m'
+        try:
+            return f'\033[1m\033[{COLORS[c]}m{s}\033[0m'
+        except KeyError:
+            return s
+    else:
+        return s
+
+def printc(color, *args, **kw):
+	"""Print text in a given color."""
+	print(*(as_color(a,color) for a in args), **kw)
+
 # all relations
 """
  Schema |      Name       |   Type   
@@ -763,22 +818,41 @@ def populate_users(conn):
 """
 
 """
+TABLE			DEPENDENCIES (other tables that must exist first)
+actor			<none>
+director		<none>
+genre			<none>
+plan			<none>
+studio			<none>
+users			<none>
+
+movie			studio, director, genre
 act				actor, movie
 history			movie, users
-movie			
-progress		
-review			
-subscription	
-
-populate_movie_without_ratings
+progress		history
+review			history
+subscription	history
 """
 
 if __name__ == '__main__':
-	populate_actor()
-	populate_director()
-	populate_genre()
-	populate_plan()
-	populate_studio()
-	populate_users()
+	user = input("Enter database user: ")
 	
+	conn = psycopg2.connect(host="localhost", port=5432, \
+		dbname="small_example", user=user)
 	
+	populate_actor(conn)
+	populate_director(conn)
+	populate_genre(conn)
+	populate_plan(conn)
+	populate_studio(conn)
+	populate_users(conn)
+	
+	populate_movie_without_ratings(conn)
+	populate_act(conn)
+	populate_history(conn)
+	populate_progress(conn)
+	populate_review_and_movie_ratings(conn)
+	populate_subscription(conn)
+	
+	print('all tables filled; exiting')
+	conn.close()
