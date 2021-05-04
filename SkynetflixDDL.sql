@@ -47,7 +47,8 @@ create table movie
     studio varchar(50) references studio(name),
     director INTEGER references director(id),
     date_produced date,
-    average_rating numeric(3,1), -- rating from 0.0 to 10.0
+    total_rating_count INTEGER,
+    total_rating INTEGER,
     available boolean,
     summary varchar(256)
 );
