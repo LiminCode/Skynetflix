@@ -246,14 +246,14 @@ def filter_return_count(f, values):
             count = int(count)
         except ValueError:
             raise ValueError(
-                f'get highest rated movies: enter a valid count (you entered {count})')
+                f'enter a valid count (you entered {count})')
         if count < 1:
             raise ValueError(
-                'get highest rated movies: enter a count > 0 (you entered {count})')
+                'enter a count > 0 (you entered {count})')
         # this will be passed to the parameterized query
         values.append(str(count))
         return f'LIMIT %s'  # SQL for the paratemerized query
-    return count
+    return ''
 
 
 PRIMARY_FIELDS = ('genre\0', '# of results to return\0')
@@ -287,17 +287,6 @@ def parse_dates(date_name, where, values):
 
 
 # # # # # # # # # # # # # # # # Queries # # # # # # # # # # # # # # # #
-
-def list_genres(conn):
-    with conn.cursor() as cur:
-        try:
-            cur.execute("SELECT name, info FROM genre;")
-            for genre, info in cur:
-                printc('b', f'*** {genre} ***')
-                print(info)
-                print('-' * 70)
-        except Exception as e:
-            print('list_genres: error:', repr(e))
 
 
 def get_active_movies(
@@ -350,13 +339,11 @@ def get_active_movies(
         except Exception as e:
             print('get_active_movies: error:', repr(e))
 
-# 	Who are the most popular actors?
-# 		+ Which actors star in the most movies in a given time?
 
+# 	Which actors have the highest associated movie ratings?
+# 		* Calculate an actor's rating as the average rating across all the movies he starred in
 
-def get_busiest_actors(conn, *, fields=PRIMARY_FIELDS):
-    """Get the actors featured in the most movies in some time frame, optionally
-    filtering by genre and limiting number of query results returned."""
+def get_highest_rated_actors(conn, *, fields=PRIMARY_FIELDS):
     where = []
     values = []
     f = {f: i for f, i in zip(fields, menu_selections(*fields))}
@@ -373,48 +360,14 @@ def get_busiest_actors(conn, *, fields=PRIMARY_FIELDS):
                 f"""
 				SELECT
 					first_name || ' ' || last_name AS name,
-					COUNT(*) num_movies_acted
-				FROM actors
-					JOIN act
-					ON (actors.id = act.actor_id)
-				{where}
-				GROUP BY name
-				ORDER BY COUNT(*) DESC
-				{count};""",
-                values
-            )
-            print('*** CURSOR RESULTS:', list(cur))  # "<PRINT THE RESULTS>"
-        except Exception as e:
-            print('get_busiest_actors: error:', repr(e))
-
-# 	Which actors have the highest associated movie ratings?
-# 		* Calculate an actor's rating as the average rating across all the movies he starred in
-
-
-def get_highest_rated_actors(conn, *, fields=PRIMARY_FIELDS):
-    where = []
-    values = []
-    f = {f: i for f, i in zip(fields, menu_selections(*fields))}
-
-    parse_genre(f, where, values)
-    parse_dates('date_produced', where, values)
-    count = filter_return_count(f, values)
-
-    where = f'WHERE {" AND ".join(where)}' if where else ''
-
-    with conn.cursor() as cur:
-        try:
-            cur.execute(
-                """
-				SELECT
-					first_name || ' ' || last_name AS name,
-					AVG(average_rating)
+					AVG(review.rating) avg_rating
 				FROM
 					actors A
 					JOIN act ON (act.actor_id = A.id)
-					JOIN movie ON (act.movie_id = movie.id)
+					JOIN review R ON (act.movie_id = R.movie_id)
 				{where}
 				GROUP BY name
+				ORDER BY avg_rating
 				{count};
 				""",
                 values
@@ -444,12 +397,14 @@ def get_highest_rated_directors(conn, *, fields=PRIMARY_FIELDS):
                 """
 				SELECT
 					first_name || ' ' || last_name AS name,
-					AVG(average_rating) avg_rating
+					AVG(review.rating) avg_rating
 				FROM
 					directors D
-					JOIN movie ON (D.id = movie.director_id)
+					JOIN direct ON (act.director_id = D.id)
+					JOIN review R ON (direct.movie_id =R.movie_id)
 				{where}
 				GROUP BY name
+				ORDER BY avg_rating
 				{count};
 				""",
                 values
@@ -492,41 +447,6 @@ def get_popular_movies(conn, *, fields=PRIMARY_FIELDS):
         except Exception as e:
             print('get_popular_movies: error:', repr(e))
 
-# 	Who directs the most movies in a given time frame?
-
-
-def get_busiest_directors(conn, *, fields=PRIMARY_FIELDS):
-    """Get the most productive directors in a certain time frame, optionally
-    filtering by genre and limiting number of query results returned."""
-    where = []
-    values = []
-    f = {f: i for f, i in zip(fields, menu_selections(*fields))}
-
-    parse_genre(f, where, values)
-    parse_dates('date_produced', where, values)
-    count = filter_return_count(f, values)
-
-    where = f'WHERE {" AND ".join(where)}' if where else ''
-
-    with conn.cursor() as cur:
-        try:
-            cur.execute(
-                f"""
-				SELECT
-					D.first_name || ' ' || D.last_name AS name,
-					COUNT(*) num_movies_directed
-				FROM director D
-					JOIN movie M
-					ON (D.id = M.director_id)
-				{where}
-				GROUP BY name
-				ORDER BY COUNT(*) DESC
-				{count};""",
-                values
-            )
-            print('*** CURSOR RESULTS:', list(cur))  # "<PRINT THE RESULTS>"
-        except Exception as e:
-            print('get_busiest_directors: error:', repr(e))
 
 
 # 	Which users watch the most movies (of a certain genre) in a given time frame?
@@ -587,10 +507,17 @@ def get_highest_rated_movies(
         try:
             cur.execute(
                 f"""
-				SELECT title, total_rating/total_rating_count AS average_rating
-				FROM movie
+				WITH average_ratings AS
+					(SELECT movie_id, AVG(rating) avg_r
+					 FROM review
+					 GROUP BY movie_id
+					)
+				
+				SELECT title, average_ratings.avg_r AS average_rating
+				FROM movie JOIN average_ratings AR
+					ON movie.id = AR.movie_id
 				{where}
-				ORDER BY average_rating DESC
+				ORDER BY average_ratings.avg_r DESC
 				{count};""",
                 values
             )
@@ -603,22 +530,26 @@ def get_highest_rated_movies(
 
 def ending_subscriptions(conn, *, options=set('dwm'),
                          conv=dict(d=1, w=7, m=30),
-                         prompt="enter window here ('d', 'w', or 'm'):"):
-    """month = 30 days, week = 7 days"""
+                         prompt="enter window here ('d'=day, 'w'=week, or 'm'=month):"):
+    """Generate a list of users whose subscriptions are ending soon.
+    The definition of 'soon' is specified by user input."""
+    
+    # month = 30 days, week = 7 days
     window = conv[simple_select(prompt, options)]
     # get ending times of subscriptions within window
     with conn.cursor() as cur:
         try:
             cur.execute(
-                f"""
+            f"""
 			SELECT
-				user_id,
+				U.first_name || ' ' || U.last_name AS name,
 				start_date + month_length AS end_date
 			FROM
 				subscription S
 				JOIN plan P ON (S.plan_name = P.name)
+				JOIN users U ON (U.id = S.user_id)
 			WHERE
-				end_date - CURRENT_DATE() > INTEGER {window}
+				end_date - CURRENT_DATE() <= INTEGER {window}
 			ORDER BY end_date DESC;"""
                 # direct input of `window` by formatting is okay here
                 # since the inputs are restricted by the `conv` dictionary
@@ -631,6 +562,7 @@ def ending_subscriptions(conn, *, options=set('dwm'),
 
 
 def generate_subscription_counts(conn):
+    """Generate counts of how many users are currently subscribed for each plan."""
     with conn.cursor() as cur:
         try:
             cur.execute(
@@ -685,6 +617,7 @@ def subscription_history(conn):
 
 
 def get_user_current_subscription_window(conn):
+    """For a given user id, get the start and end dates of his current subscription."""
     id = menu_selections('user id')
 
     with conn.cursor() as cur:
@@ -708,6 +641,82 @@ def get_user_current_subscription_window(conn):
         except Exception as e:
             print('get_user_current_subscription_window: error:', repr(e))
 
+def get_actor_director_pairs(conn):
+	"""Get the number of movies that each actor, director pair have collaborated
+	on, in descending order, with option to limit result count."""
+	
+	count = filter_return_count(f, values)
+	
+	with conn.cursor() as cur:
+		try:
+			cur.execute(
+			"""
+			SELECT actor_id, director_id, COUNT(*) num_movies
+			FROM
+				act A JOIN director D ON (A.movie_id = D.movie_id)
+			GROUP BY
+				actor_id, director_id
+			ORDER BY
+				COUNT(*) DESC, actor_id ASC, director_id ASC
+			{count};
+			"""
+			)
+			print('actor id, director id, # movies\n- - - -')
+			for a,d,m in cur: print(f'    a={a}, d={d}, # movies = {m}')
+			print('- - - -')
+        except Exception as e:
+            print('get_actor_director_pairs: exception:', repr(e))
+
+def get_user_genres(conn):
+	"""Get, for each user, which genre(s) that user is most likely to watch."""
+	
+	with conn.cursor() as cur:
+		try:
+			cur.exeucte("""
+			WITH
+				(SELECT user_id, genre, COUNT(*) c
+				 FROM history H
+					JOIN movie M ON H.movie_id = M.id
+				 GROUP BY
+					user_id, genre
+				) as user_genre_counts,
+		
+				(SELECT user_id, MAX(c)
+				 FROM user_genre_counts
+				 GROUP BY user_id
+				) as user_genre_max
+			
+			SELECT user_id, genre
+			FROM user_genre_counts
+			WHERE user_id, c IN user_genre_max
+			ORDER BY user_id;
+			"""
+			)
+			print('most common genre for each user:\n- - - -')
+			for u,g in cur: print(f'    user {u}: {g}')
+			print('- - - -')
+        except Exception as e:
+            print('get_user_genres: exception:', repr(e))
+
+def get_highest_grossing_studios(conn):
+	"""Get the total gross amount earned by each studio, in descending order."""
+    
+    with conn.cursor() as cur:
+        try:
+			cur.execute(
+			"""
+			SELECT studio_name, SUM(gross_income) revenue
+			FROM produce JOIN movie M
+				ON (P.movie_id = M.id)
+			GROUP BY
+				studio_name
+			ORDER BY revenue;
+			"""
+			)
+			for s,r in cur:
+				print(f'{s}: total income = {r}')
+        except Exception as e:
+            print('get_highest_grossing_studios: exception:', repr(e))
 
 # # # # # # # # # # # # # # # # Updates # # # # # # # # # # # # # # # #
 
@@ -989,25 +998,6 @@ def add_movie(conn, *, id_parse=ACTOR_ID_PARSE, info_cap=MAX_INFO_SIZE):
             ...
     conn.autocommit = True
 
-# Add a new director
-
-
-def add_director(conn):
-    first, last, info = \
-        menu_selections('first name', 'last name', 'any additional info\0')
-
-    with conn.cursor() as cur:
-        try:
-            cur.execute(
-                """
-			INSERT INTO director
-				(first_name, last_name, info)
-			VALUES (%s, %s, %s);
-			""",
-                (first, last, info)
-            )
-        except Exception as e:
-            print('add_director: error:', repr(e))
 
 # Add new actors to an already existing movie
 
@@ -1050,29 +1040,6 @@ def add_actors_to_movie(conn, *, id_parse=ACTOR_ID_PARSE):
 
     conn.autocommit = True
 
-# Add a new actor
-
-
-def add_actor(conn, *, info_cap=MAX_INFO_SIZE):
-    first, last, info = menu_selections(
-        'first name', 'last name',
-        f'any additional info (truncated at {info_cap} chars)\0'
-    )
-
-    info = truncate(info, info_cap)
-
-    with conn.cursor() as cur:
-        try:
-            cur.execute(
-                """
-			INSERT INTO actor
-				(fisrt_name, last_name, info)
-			VALUES (%s, %s, %s);
-			""",
-                (first, last, info)
-            )
-        except Exception as e:
-            print('add_actor: error:', repr(e))
 
 # record a new event when a user watches a movie
 
@@ -1097,31 +1064,32 @@ def track_watch_event(conn, *, fields=('user id', 'movie id')):
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 _func_mapping = {
-    '1':	list_genres,
-    '2':	get_active_movies,
-    '3':	get_busiest_actors,
-    '4':	get_highest_rated_actors,
-    '5':	get_highest_rated_directors,
-    '6':	get_popular_movies,
-    '7':	get_busiest_directors,
-    '8':	get_busiest_users,
-    '9':	get_highest_rated_movies,
-    '10':	ending_subscriptions,
-    '11':	generate_subscription_counts,
-    '12':	subscription_history,
-    '13':	get_user_current_subscription_window,
-    '14':	leave_a_review,
-    '15':	sign_user_up_for_plan_today,
-    '16':	sign_user_up_for_future_plan,
-    '17':	add_user,
-    '18':	remove_user,
-    '19':	delist_movie,
-    '20':	relist_movie,
-    '21':	add_movie,
-    '22':	add_director,
-    '23':	add_actors_to_movie,
-    '24':	add_actor,
-    '25':	track_watch_event
+	str(i):f for i,f in enumerate(sorted
+	((
+        get_active_movies,
+        get_highest_rated_actors, ## redo for new schema
+        get_highest_rated_directors, ## redo for new schema
+        get_popular_movies,
+        get_busiest_users,
+        get_highest_rated_movies,
+        ending_subscriptions,
+        generate_subscription_counts,
+        subscription_history,
+        get_user_current_subscription_window,
+        leave_a_review,
+        sign_user_up_for_plan_today,
+        sign_user_up_for_future_plan,
+        add_user,
+        remove_user,
+        delist_movie,
+        relist_movie,
+        add_movie,
+        add_actors_to_movie,
+        track_watch_event,
+        get_actor_director_pairs,  ## check with new schema
+        get_user_genres,  ## check with new schema
+        get_highest_grossing_studios  ## check with new schema
+    ), key = lambda f: f.__name__))
 }
 
 if __name__ == '__main__':

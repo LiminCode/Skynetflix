@@ -140,7 +140,7 @@ def populate_act():
 	
 	with conn.cursor() as cur:
 		try:
-			cur.execute_batch(
+			execute_batch(cur,
 				"""
 				INSERT INTO act (actor_id, movie_id, if_main, role)
 				VALUES (%s, %s, %s, %s);
@@ -167,18 +167,29 @@ Indexes:
 Referenced by:
     TABLE "act" CONSTRAINT "act_actor_id_fkey" FOREIGN KEY (actor_id) REFERENCES actor(id)
 """
-def populate_actor(conn):
+def populate_actor(conn, *, count = 300):
+	actors = range(count)
+	
+	# keep things simple here
+	first_names = (f'actor {i} first' for i in actors)
+	last_names = (f'actor {i} last' for i in actors)
+# 	infos = (f'some info about actor {i}' for i in actors) # wound up not including this
+	genders = np.random.choice(['m','f'], size=count, replace=True)
+	ages = np.random.randint(20, 61, count)
+	
+	del ages,genders
+	
+	actor_insert_list = list(zip(first_names, last_names, genders, info))
 	with conn.cursor() as cur:
 		try:
-			for i in range(100):
-				cur.execute(
-				"""
-				INSERT INTO actor
-					(first_name, last_name, info)
-				VALUES (%s, %s, %s);
-				""",
-				(f'actor {i} first',f'actor {i} last', f'some info about actor {i}')
-				)
+			execute_batch(cur,
+			"""
+			INSERT INTO actor
+				(first_name, last_name, gender, age)
+			VALUES (%s, %s, %s, %s);
+			""",
+			actor_insert_list
+			)
 			conn.commit()
 		except Exception as e:
 			print('populate actor: insert actors: exception occurred:',repr(e))
@@ -198,49 +209,58 @@ Indexes:
 Referenced by:
     TABLE "movie" CONSTRAINT "movie_director_fkey" FOREIGN KEY (director) REFERENCES director(id)
 """
-def populate_director(conn):
+def populate_director(conn, *, count = 300):
+	directors = range(count)
+	
+	# keep things simple here
+	first_names = (f'director {i} first' for i in directors)
+	last_names = (f'director {i} last' for i in directors)
+	ages = np.random.randint(30, 71, count)
+	director_insert_list = list(zip(first_names, last_names, ages))
+	
+	del ages
+	
 	with conn.cursor() as cur:
 		try:
-			for i in range(100):
-				cur.execute(
-				"""
-				INSERT INTO director
-					(first_name, last_name, info)
-				VALUES (%s, %s, %s);
-				""",
-				(f'director {i} first',f'director {i} last', f'some info about director {i}')
-				)
+			execute_batch(cur,
+			"""
+			INSERT INTO director
+				(first_name, last_name, age)
+			VALUES (%s, %s, %s);
+			""",
+			director_insert_list
+			)
 			conn.commit()
 		except Exception as e:
 			print('populate director: insert directors: exception occurred:',repr(e))
 			conn.rollback()
 
-# genre
-"""
-                       Table "public.genre"
- Column |          Type          | Collation | Nullable | Default 
---------+------------------------+-----------+----------+---------
- name   | character varying(50)  |           | not null | 
- info   | character varying(200) |           |          | 
-Indexes:
-    "genre_pkey" PRIMARY KEY, btree (name)
-Referenced by:
-    TABLE "movie" CONSTRAINT "movie_genre_fkey" FOREIGN KEY (genre) REFERENCES genre(name)"""
-def populate_genre(conn):
-	with conn.cursor() as cur:
-		try:
-			for i in range(20):
-				cur.execute(
-				"""
-				INSERT INTO genre (name, info)
-				VALUES (%s, %s, %s);
-				""",
-				(f'genre {i}',f'director {i}', f'some info about genre {i}')
-				)
-			conn.commit()
-		except Exception as e:
-			print('populate genre: insert genres: exception occurred:',repr(e))
-			conn.rollback()
+# genre (removed from schema)
+# """
+#                        Table "public.genre"
+#  Column |          Type          | Collation | Nullable | Default 
+# --------+------------------------+-----------+----------+---------
+#  name   | character varying(50)  |           | not null | 
+#  info   | character varying(200) |           |          | 
+# Indexes:
+#     "genre_pkey" PRIMARY KEY, btree (name)
+# Referenced by:
+#     TABLE "movie" CONSTRAINT "movie_genre_fkey" FOREIGN KEY (genre) REFERENCES genre(name)"""
+# def populate_genre(conn):
+# 	with conn.cursor() as cur:
+# 		try:
+# 			for i in range(20):
+# 				cur.execute(
+# 				"""
+# 				INSERT INTO genre (name, info)
+# 				VALUES (%s, %s, %s);
+# 				""",
+# 				(f'genre {i}',f'director {i}', f'some info about genre {i}')
+# 				)
+# 			conn.commit()
+# 		except Exception as e:
+# 			print('populate genre: insert genres: exception occurred:',repr(e))
+# 			conn.rollback()
 
 # history
 """
@@ -257,14 +277,16 @@ Foreign-key constraints:
     "history_movie_id_fkey" FOREIGN KEY (movie_id) REFERENCES movie(id)
     "history_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id)
 """
+
+####  THIS HAS TO BE UPDATED
+
 def populate_history(conn):
 	with conn.cursor() as cur:
 		try:
 			cur.execute(
 			"""
-			SELECT movie_id, MIN(date_produced)
-			FROM movie
-			GROUP BY movie_id;"""
+			SELECT movie_id, date_released
+			FROM movie;"""
 			)
 			movies_dates = tuple(cur)
 			conn.commit()
@@ -296,6 +318,7 @@ def populate_history(conn):
 			size = np.random.randint(1,n)
 			replace = True
 		)
+		
 		# this is the complete history of movies for this user
 		#
 		# simplification: a user watches a given movie only once on any given day
@@ -306,8 +329,7 @@ def populate_history(conn):
 		#         based on the history table;
 		#     the two-way dependency is unnecessarily complex
 		#         for this application
-		choice = tuple({
-			# notice: the tuple acts on a set comprehension
+		choice = {
 			# the set comprehension ensures any given movie can be watched
 			#     at most once on a given day, as stated above
 			(
@@ -319,15 +341,15 @@ def populate_history(conn):
 				
 			)
 			for i in choice
-		})
-		history_insert_list.append(choice)
+		}
+		history_insert_list.extend((*c, '<time>') for c in choice)
 	
 	with conn.cursor() as cur:
 		try:
-			cur.execute_batch(
+			execute_batch(cur,
 			"""
 			INSERT INTO history
-				(user_id, movie_id, watch_time)
+				(user_id, movie_id, date)
 			VALUES (%s, %s, %s);
 			""",
 			history_insert_list,
@@ -363,36 +385,39 @@ Referenced by:
     TABLE "progress" CONSTRAINT "progress_movie_id_fkey" FOREIGN KEY (movie_id) REFERENCES movie(id)
     TABLE "review" CONSTRAINT "review_movie_id_fkey" FOREIGN KEY (movie_id) REFERENCES movie(id)
 """
-def populate_movie_without_ratings(conn):
-	with conn.cursor() as cur:
-		try:
-			cur.execute("SELECT name,date_founded FROM studio;")
-			studios,dates = zip(*cur)
-			conn.commit()
-		except Exception as e:
-			print('populate movie: select studios & dates: exception:',repr(e))
-			conn.rollback()
-			return
-	
-	with conn.cursor() as cur:
-		try:
-			cur.execute("SELECT id FROM director;")
-			directors = tuple(cur)
-			conn.commit()
-		except Exception as e:
-			print('populate movie: select director ids: exception:',repr(e))
-			conn.rollback()
-			return
 
-	with conn.cursor() as cur:
-		try:
-			cur.execute("SELECT name FROM genre;")
-			genres = tuple(cur)
-			conn.commit()
-		except Exception as e:
-			print('populate movie: select genres: exception:',repr(e))
-			conn.rollback()
-			return
+####  THIS HAS TO BE UPDATED
+
+def populate_movie_without_ratings(conn):
+# 	with conn.cursor() as cur:
+# 		try:
+# 			cur.execute("SELECT name,date_founded FROM studio;")
+# 			studios,dates = zip(*cur)
+# 			conn.commit()
+# 		except Exception as e:
+# 			print('populate movie: select studios & dates: exception:',repr(e))
+# 			conn.rollback()
+# 			return
+# 	
+# 	with conn.cursor() as cur:
+# 		try:
+# 			cur.execute("SELECT id FROM director;")
+# 			directors = tuple(cur)
+# 			conn.commit()
+# 		except Exception as e:
+# 			print('populate movie: select director ids: exception:',repr(e))
+# 			conn.rollback()
+# 			return
+# 
+# 	with conn.cursor() as cur:
+# 		try:
+# 			cur.execute("SELECT name FROM genre;")
+# 			genres = tuple(cur)
+# 			conn.commit()
+# 		except Exception as e:
+# 			print('populate movie: select genres: exception:',repr(e))
+# 			conn.rollback()
+# 			return
 	
 	num_movies = 10000
 	
@@ -401,8 +426,11 @@ def populate_movie_without_ratings(conn):
 		), dtype='U1'
 	)
 	urls = np.array(list(map(''.join, np.random.choice(chars,[num_movies,20]))))
+	incomes = np.random.randint(10**8,10**9,num_movies)
+	# optimistic
+	budgets = incomes - np.random.randint(10**7,5*10**7,num_movies)
 	
-	insert = "(title, url, genre, studio, director, date_produced, available, summary)"
+	insert = "(title, url, genre, budget, gross_income, date_released, summary)"
 	
 	i = np.random.choice(
 		np.arange(len(studios)),
@@ -416,38 +444,35 @@ def populate_movie_without_ratings(conn):
 	intervals = [((dt.date().today()-d) - dt.timedelta(10)).days for d in dates]
 	dates = tuple(d + i for d,i in zip(dates,np.random.randint(intervals)))
 	
-	available = np.random.randint(0,101,num_movies).astype(bool)
-	
 	movie_insert_list = [
 		(
 			f'title of movie {m}',
 			url,
 			genre,
-			studio,
-			director,
 			date,
-			a,
+			budget,
+			income,
 			f'summary about movie {m}'
 		)
-		for m,url,genre,studio,director,date,a in zip(
-			movies, urls, genres, studios, directors, dates, available
+		for m,url,genre,date,budget,income in zip(
+			movies, urls, genres, dates, studios, budgets, incomes
 		)
 	]
 	
 	with conn.cursor() as cur:
 		try:
-			cur.execute_batch(
+			execute_batch(cur,
 				f"""
 				INSERT INTO movie
 					{insert}
 				VALUES
-					(%s, %s, %s, %s, %s, %s, %s, %s);
+					(%s, %s, %s, %s, %s, %s, %s);
 				""",
 				movie_insert_list
 			)
 			conn.commit()
 		except Exception as e:
-			print('populate movie: movie insertion: exception:',repr(e))
+			print('populate_movie_without_ratings: movie insertion: exception:',repr(e))
 			conn.rollback()
 			return
 
@@ -484,57 +509,114 @@ def populate_plan(conn):
 			print('populate plan: insert plans: exception:',repr(e))
 			conn.rollback()
 
-# progress
+# progress (removed from schema)
+# """
+#                   Table "public.progress"
+#      Column     |   Type   | Collation | Nullable | Default 
+# ----------------+----------+-----------+----------+---------
+#  user_id        | integer  |           | not null | 
+#  movie_id       | integer  |           | not null | 
+#  last_timestamp | interval |           |          | 
+# Indexes:
+#     "progress_pkey" PRIMARY KEY, btree (user_id, movie_id)
+# Foreign-key constraints:
+#     "progress_movie_id_fkey" FOREIGN KEY (movie_id) REFERENCES movie(id)
+#     "progress_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id)
+# """
+# def populate_progress(conn):
+# 	with conn.cursor() as cur:
+# 		try:
+# 			cur.execute(
+# 			"""
+# 			SELECT DISTINCT user_id, movie_id
+# 			FROM history;
+# 			"""
+# 			)
+# 			users,movies = zip(*cur)
+# 			conn.commit()
+# 		except Exception as e:
+# 			print('populate progress: select users, movies: exception:',repr(e))
+# 			conn.rollback()
+# 			return
+# 	
+# 	progress_insert_list = list(zip(
+# 		users,
+# 		movies,
+# 		(f'{i} seconds' for i in
+# 			np.random.randint(30*60, 120*60+1, len(users))
+# 		)
+# 	))
+# 	
+# 	with conn.cursor() as cur:
+# 		try:
+# 			execute_batch(cur,
+# 			"""
+# 			INSERT INTO progress
+# 				(user_id, movie_id, last_timestamp)
+# 			VALUES (%s, %s, %s);
+# 			"""
+# 			)
+# 			printc('g',f'`progress` relation successfully populated with {len(progress_insert_list)} entries')
+# 			conn.commit()
+# 		except Exception as e:
+# 			print('populate progress: insert entries: exception:',repr(e))
+# 			conn.rollback()
+
+# produce
 """
-                  Table "public.progress"
-     Column     |   Type   | Collation | Nullable | Default 
-----------------+----------+-----------+----------+---------
- user_id        | integer  |           | not null | 
- movie_id       | integer  |           | not null | 
- last_timestamp | interval |           |          | 
-Indexes:
-    "progress_pkey" PRIMARY KEY, btree (user_id, movie_id)
-Foreign-key constraints:
-    "progress_movie_id_fkey" FOREIGN KEY (movie_id) REFERENCES movie(id)
-    "progress_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id)
 """
-def populate_progress(conn):
-	with conn.cursor() as conn:
+def populate_produce():
+	with conn.cursor() as cur:
 		try:
 			cur.execute(
 			"""
-			SELECT DISTINCT user_id, movie_id
-			FROM history;
+			SELECT name FROM studio;
 			"""
 			)
-			users,movies = zip(*cur)
+			studios = tuple(cur)
 			conn.commit()
 		except Exception as e:
-			print('populate progress: select users, movies: exception:',repr(e))
+			print('populate_produce: select studio names: exception:',repr(e))
 			conn.rollback()
 			return
 	
-	progress_insert_list = list(zip(
-		users,
-		movies,
-		(f'{i} seconds' for i in
-			np.random.randint(30*60, 120*60+1, len(users))
-		)
-	))
-	
-	with conn.cursor() as conn:
+	with conn.cursor() as cur:
 		try:
-			cur.execute_batch(
+			cur.execute(
 			"""
-			INSERT INTO progress
-				(user_id, movie_id, last_timestamp)
-			VALUES (%s, %s, %s);
+			SELECT id FROM movie;
 			"""
 			)
-			printc('g',f'`progress` relation successfully populated with {len(progress_insert_list)} entries')
+			studios = tuple(cur)
 			conn.commit()
 		except Exception as e:
-			print('populate progress: insert entries: exception:',repr(e))
+			print('populate_produce: select movies: exception:',repr(e))
+			conn.rollback()
+			return
+	
+	studios = np.random.choice(
+		studios,
+		size=len(movies),
+		replace=True
+	)
+	
+	produce_insert_list = list(zip(movies,studios))
+	n = len(produce_insert_list)
+	
+	with conn.cursor() as cur:
+		try:
+			execute_batch(cur,
+			"""
+			INSERT INTO produce
+				(studio_name, movie_id)
+			VALUES (%s, %s);
+			""",
+			produce_insert_list
+			)
+			printc('g', f'successfully inserted {n} entries into `produce` relation')
+			conn.commit()
+		except Exception as e:
+			print('populate_produce: insert entries: exception:',repr(e))
 			conn.rollback()
 
 # review
@@ -604,7 +686,7 @@ def populate_review_and_movie_ratings(conn):
 	
 	with conn.cursor() as cur:
 		try:
-			cur.execute_batch(
+			execute_batch(cur,
 				"""
 				INSERT INTO review
 					(user_id, movie_id, date, rating, content)
@@ -727,7 +809,7 @@ def populate_subscription(conn):
 	
 	with conn.cursor() as cur:
 		try:
-			cur.execute_batch(
+			execute_batch(cur,
 			"""
 			INSERT INTO subscription
 				(user_id, plan_name, start_date, purchased_date)
@@ -785,7 +867,7 @@ def populate_users(conn):
 	
 	with conn.cursor() as cur:
 		try:
-			cur.execute_batch(
+			execute_batch(cur,
 			"""
 			INSERT INTO users
 				(first_name, last_name, email, phone_number, password)
@@ -821,15 +903,16 @@ def populate_users(conn):
 TABLE			DEPENDENCIES (other tables that must exist first)
 actor			<none>
 director		<none>
-genre			<none>
+-genre			<none>
 plan			<none>
 studio			<none>
 users			<none>
 
 movie			studio, director, genre
+produce			studio, movie
 act				actor, movie
 history			movie, users
-progress		history
+-progress		history
 review			history
 subscription	history
 """
@@ -842,15 +925,16 @@ if __name__ == '__main__':
 	
 	populate_actor(conn)
 	populate_director(conn)
-	populate_genre(conn)
+# 	populate_genre(conn) # (removed)
 	populate_plan(conn)
 	populate_studio(conn)
 	populate_users(conn)
 	
 	populate_movie_without_ratings(conn)
+	populate_produce()
 	populate_act(conn)
 	populate_history(conn)
-	populate_progress(conn)
+# 	populate_progress(conn) # (removed)
 	populate_review_and_movie_ratings(conn)
 	populate_subscription(conn)
 	
