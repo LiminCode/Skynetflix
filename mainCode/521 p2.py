@@ -1,7 +1,7 @@
 """
 TO DO
-	* specific error handling
-	* print formatting
+    * specific error handling
+    * print formatting
 """
 
 import sys
@@ -15,13 +15,12 @@ import psycopg2
 from psycopg2 import ProgrammingError, IntegrityError
 from psycopg2.extras import execute_batch
 
-#  ssh tunnel enable this program runs on any device
-#  remember install sshtunnel first: $pip install sshtunnel
-from sshtunnel import SSHTunnelForwarder
+
+import platform
 
 MAX_ID_SIZE = 50
 MAX_INFO_SIZE = 500
-
+PRIMARY_FIEDS = 0 # I don't know this key's value, added it just for error free. --Limin
 ACTOR_ID_PARSE = re.compile('(\d{1,%i})([*]{,1})' % MAX_ID_SIZE)
 
 # more portable implementation might use a pypi packaged
@@ -152,7 +151,7 @@ def custom_select(prompt, matcher, msg=None):
                     msg = f'{msg}: re-enter here:'
                 printc('r', msg)
         except Exception as e:
-            # 			printc('r', 'custom_select error: '+repr(e))
+            #             printc('r', 'custom_select error: '+repr(e))
             raise
         else:
             return i, r
@@ -224,12 +223,12 @@ def filter_date_range():
 # NOT USED AT THE MOMENT
 """
 def get_cutoff_date(date_cutoff_string):
-	if date_cutoff_string[0] not in '<>':
-		return False
-	date = get_date(date_cutoff_string[1])
-	if not date:
-		return False
-	return date_cutoff_string[0], date
+    if date_cutoff_string[0] not in '<>':
+        return False
+    date = get_date(date_cutoff_string[1])
+    if not date:
+        return False
+    return date_cutoff_string[0], date
 """
 
 
@@ -292,7 +291,7 @@ def parse_dates(date_name, where, values):
 def get_active_movies(
         conn, *, fields=PRIMARY_FIELDS + ('keywords',),
         prune_pattern=re.compile('([A-z]|[0-9]|\s)+'),
-        parse_pattern=re.compile('\S+{1,20}')
+        parse_pattern=re.compile('\S{1,20}') # don't understand this, so I remove '+' in '\S+{1,20}' to make it error free  --Limin
 ):
     """Get a list of movies that are actively available for streaming,
     with options to filter by release date and genre, as well as keywords."""
@@ -329,10 +328,10 @@ def get_active_movies(
         try:
             cur.execute(
                 f"""
-				SELECT title FROM movie
-				{where}
-				ORDER BY title
-				{count};""",
+                SELECT title FROM movie
+                {where}
+                ORDER BY title
+                {count};""",
                 values
             )
             print('*** CURSOR RESULTS:', list(cur))  # "<PRINT THE RESULTS>"
@@ -340,8 +339,8 @@ def get_active_movies(
             print('get_active_movies: error:', repr(e))
 
 
-# 	Which actors have the highest associated movie ratings?
-# 		* Calculate an actor's rating as the average rating across all the movies he starred in
+#     Which actors have the highest associated movie ratings?
+#         * Calculate an actor's rating as the average rating across all the movies he starred in
 
 def get_highest_rated_actors(conn, *, fields=PRIMARY_FIELDS):
     where = []
@@ -358,26 +357,26 @@ def get_highest_rated_actors(conn, *, fields=PRIMARY_FIELDS):
         try:
             cur.execute(
                 f"""
-				SELECT
-					first_name || ' ' || last_name AS name,
-					AVG(review.rating) avg_rating
-				FROM
-					actors A
-					JOIN act ON (act.actor_id = A.id)
-					JOIN review R ON (act.movie_id = R.movie_id)
-				{where}
-				GROUP BY name
-				ORDER BY avg_rating
-				{count};
-				""",
+                SELECT
+                    first_name || ' ' || last_name AS name,
+                    AVG(review.rating) avg_rating
+                FROM
+                    actors A
+                    JOIN act ON (act.actor_id = A.id)
+                    JOIN review R ON (act.movie_id = R.movie_id)
+                {where}
+                GROUP BY name
+                ORDER BY avg_rating
+                {count};
+                """,
                 values
             )
             print('*** CURSOR RESULTS:', list(cur))  # "<PRINT THE RESULTS>"
         except Exception as e:
             print('get_highest_rated_actors: error:', repr(e))
 
-# 	Which directors have the highest associated movie ratings?
-# 		+ Calculate a director's rating as the average rating across all the movies he directed
+#     Which directors have the highest associated movie ratings?
+#         + Calculate a director's rating as the average rating across all the movies he directed
 
 
 def get_highest_rated_directors(conn, *, fields=PRIMARY_FIELDS):
@@ -395,25 +394,25 @@ def get_highest_rated_directors(conn, *, fields=PRIMARY_FIELDS):
         try:
             cur.execute(
                 """
-				SELECT
-					first_name || ' ' || last_name AS name,
-					AVG(review.rating) avg_rating
-				FROM
-					directors D
-					JOIN direct ON (act.director_id = D.id)
-					JOIN review R ON (direct.movie_id =R.movie_id)
-				{where}
-				GROUP BY name
-				ORDER BY avg_rating
-				{count};
-				""",
+                SELECT
+                    first_name || ' ' || last_name AS name,
+                    AVG(review.rating) avg_rating
+                FROM
+                    directors D
+                    JOIN direct ON (act.director_id = D.id)
+                    JOIN review R ON (direct.movie_id =R.movie_id)
+                {where}
+                GROUP BY name
+                ORDER BY avg_rating
+                {count};
+                """,
                 values
             )
             print('*** CURSOR RESULTS:', list(cur))  # "<PRINT THE RESULTS>"
         except Exception as e:
             print('get_highest_rated_directors: error:', repr(e))
 
-# 	Which movies are the most popular in a given time frame?
+#     Which movies are the most popular in a given time frame?
 
 
 def get_popular_movies(conn, *, fields=PRIMARY_FIELDS):
@@ -433,14 +432,14 @@ def get_popular_movies(conn, *, fields=PRIMARY_FIELDS):
         try:
             cur.execute(
                 f"""
-				SELECT M.title, COUNT(*) num_watches
-				FROM history H
-					JOIN movie M
-					ON (M.id = H.movie_id)
-				{where}
-				GROUP BY M.id
-				ORDER BY COUNT(*) DESC
-				{count};""",
+                SELECT M.title, COUNT(*) num_watches
+                FROM history H
+                    JOIN movie M
+                    ON (M.id = H.movie_id)
+                {where}
+                GROUP BY M.id
+                ORDER BY COUNT(*) DESC
+                {count};""",
                 values
             )
             print('*** CURSOR RESULTS:', list(cur))  # "<PRINT THE RESULTS>"
@@ -448,8 +447,7 @@ def get_popular_movies(conn, *, fields=PRIMARY_FIELDS):
             print('get_popular_movies: error:', repr(e))
 
 
-
-# 	Which users watch the most movies (of a certain genre) in a given time frame?
+#     Which users watch the most movies (of a certain genre) in a given time frame?
 def get_busiest_users(conn, *, fields=PRIMARY_FIEDS):
     """Get the most binge-heavy movie watchers in a certain time frame, optionally
     filtering by genre and limiting number of query results returned."""
@@ -467,19 +465,19 @@ def get_busiest_users(conn, *, fields=PRIMARY_FIEDS):
         try:
             cur.execute(
                 f"""
-				SELECT user_id, COUNT(*) num_watches
-				FROM history
-				{where}
-				GROUP BY user_id
-				ORDER BY COUNT(*) DESC
-				{count};""",
+                SELECT user_id, COUNT(*) num_watches
+                FROM history
+                {where}
+                GROUP BY user_id
+                ORDER BY COUNT(*) DESC
+                {count};""",
                 values
             )
             print('*** CURSOR RESULTS:', list(cur))  # "<PRINT THE RESULTS>"
         except Exception as e:
             print('get_busiest_users: error:', repr(e))
 
-# 	Get highest-rated movie(s) for a given time frame, genre
+#     Get highest-rated movie(s) for a given time frame, genre
 
 
 def get_highest_rated_movies(
@@ -499,33 +497,33 @@ def get_highest_rated_movies(
 
     where = f'WHERE {" AND ".join(where)}' if where else ''
 
-# 	f"""
-# 	SELECT COALESCE(AVG(rating),0) R
-# 	FROM <review table>
-# 	"""
+#     f"""
+#     SELECT COALESCE(AVG(rating),0) R
+#     FROM <review table>
+#     """
     with conn.cursor() as cur:
         try:
             cur.execute(
                 f"""
-				WITH average_ratings AS
-					(SELECT movie_id, AVG(rating) avg_r
-					 FROM review
-					 GROUP BY movie_id
-					)
-				
-				SELECT title, average_ratings.avg_r AS average_rating
-				FROM movie JOIN average_ratings AR
-					ON movie.id = AR.movie_id
-				{where}
-				ORDER BY average_ratings.avg_r DESC
-				{count};""",
+                WITH average_ratings AS
+                    (SELECT movie_id, AVG(rating) avg_r
+                     FROM review
+                     GROUP BY movie_id
+                    )
+
+                SELECT title, average_ratings.avg_r AS average_rating
+                FROM movie JOIN average_ratings AR
+                    ON movie.id = AR.movie_id
+                {where}
+                ORDER BY average_ratings.avg_r DESC
+                {count};""",
                 values
             )
             print('*** CURSOR RESULTS:', list(cur))  # "<PRINT THE RESULTS>"
         except Exception as e:
             print('get_highest_rated_movies: error:', repr(e))
 
-# 	Get all users whose subscriptions are ending within a short time frame (week or month) from the current date
+#     Get all users whose subscriptions are ending within a short time frame (week or month) from the current date
 
 
 def ending_subscriptions(conn, *, options=set('dwm'),
@@ -533,7 +531,7 @@ def ending_subscriptions(conn, *, options=set('dwm'),
                          prompt="enter window here ('d'=day, 'w'=week, or 'm'=month):"):
     """Generate a list of users whose subscriptions are ending soon.
     The definition of 'soon' is specified by user input."""
-    
+
     # month = 30 days, week = 7 days
     window = conv[simple_select(prompt, options)]
     # get ending times of subscriptions within window
@@ -541,16 +539,16 @@ def ending_subscriptions(conn, *, options=set('dwm'),
         try:
             cur.execute(
             f"""
-			SELECT
-				U.first_name || ' ' || U.last_name AS name,
-				start_date + month_length AS end_date
-			FROM
-				subscription S
-				JOIN plan P ON (S.plan_name = P.name)
-				JOIN users U ON (U.id = S.user_id)
-			WHERE
-				end_date - CURRENT_DATE() <= INTEGER {window}
-			ORDER BY end_date DESC;"""
+            SELECT
+                U.first_name || ' ' || U.last_name AS name,
+                start_date + month_length AS end_date
+            FROM
+                subscription S
+                JOIN plan P ON (S.plan_name = P.name)
+                JOIN users U ON (U.id = S.user_id)
+            WHERE
+                end_date - CURRENT_DATE() <= INTEGER {window}
+            ORDER BY end_date DESC;"""
                 # direct input of `window` by formatting is okay here
                 # since the inputs are restricted by the `conv` dictionary
             )
@@ -567,13 +565,13 @@ def generate_subscription_counts(conn):
         try:
             cur.execute(
                 """
-			SELECT name, COUNT(*) count
-			FROM subscriptions S JOIN plan P ON (S.plan_name = P.name)
-			WHERE
-				start_date < CURRENT_DATE()
-				AND start_date + month_length > CURRENT_DATE()
-			GROUP BY name;
-			"""
+            SELECT name, COUNT(*) count
+            FROM subscriptions S JOIN plan P ON (S.plan_name = P.name)
+            WHERE
+                start_date < CURRENT_DATE()
+                AND start_date + month_length > CURRENT_DATE()
+            GROUP BY name;
+            """
             )
             # pretty print as table
             for plan, count in cur:
@@ -596,16 +594,16 @@ def subscription_history(conn):
         try:
             cur.execute(
                 f"""
-			SELECT 
-				DATE_PART('year',start_date) year,
-				DATE_PART('month',start_date) month,
-				plan_name,
-				COUNT(*)
-			FROM subscription
-			WHERE CURRENT_DATE()-start_date <= INTERVAL '{m}'
-			GROUP BY plan_name, year, month
-			ORDER BY year DESC, month DESC, plan_name ASC;
-			"""
+            SELECT
+                DATE_PART('year',start_date) year,
+                DATE_PART('month',start_date) month,
+                plan_name,
+                COUNT(*)
+            FROM subscription
+            WHERE CURRENT_DATE()-start_date <= INTERVAL '{m}'
+            GROUP BY plan_name, year, month
+            ORDER BY year DESC, month DESC, plan_name ASC;
+            """
             )
             # TO DO: pretty print in table
             for year, group in it.groupby(cur, lambda tup: tup[0]):
@@ -624,16 +622,16 @@ def get_user_current_subscription_window(conn):
         try:
             cur.execute(
                 """
-			SELECT
-				start_date,
-				start_date + month_length AS end_date
-			FROM
-				subscription S JOIN plan P ON (S.plan_name = P.name)
-			WHERE
-				user_id = %s AND
-				start_date <= CURRENT_DATE() AND
-				end_date >= CURRENT_DATE();
-			""",
+            SELECT
+                start_date,
+                start_date + month_length AS end_date
+            FROM
+                subscription S JOIN plan P ON (S.plan_name = P.name)
+            WHERE
+                user_id = %s AND
+                start_date <= CURRENT_DATE() AND
+                end_date >= CURRENT_DATE();
+            """,
                 (id,)
             )
             if next(cur, None) is None:
@@ -641,80 +639,83 @@ def get_user_current_subscription_window(conn):
         except Exception as e:
             print('get_user_current_subscription_window: error:', repr(e))
 
+
 def get_actor_director_pairs(conn):
-	"""Get the number of movies that each actor, director pair have collaborated
-	on, in descending order, with option to limit result count."""
-	
-	count = filter_return_count(f, values)
-	
-	with conn.cursor() as cur:
-		try:
-			cur.execute(
-			"""
-			SELECT actor_id, director_id, COUNT(*) num_movies
-			FROM
-				act A JOIN director D ON (A.movie_id = D.movie_id)
-			GROUP BY
-				actor_id, director_id
-			ORDER BY
-				COUNT(*) DESC, actor_id ASC, director_id ASC
-			{count};
-			"""
-			)
-			print('actor id, director id, # movies\n- - - -')
-			for a,d,m in cur: print(f'    a={a}, d={d}, # movies = {m}')
-			print('- - - -')
+    """Get the number of movies that each actor, director pair have collaborated
+    on, in descending order, with option to limit result count."""
+
+    count = filter_return_count(f, values)
+
+    with conn.cursor() as cur:
+        try:
+            cur.execute(
+            """
+            SELECT actor_id, director_id, COUNT(*) num_movies
+            FROM
+                act A JOIN director D ON (A.movie_id = D.movie_id)
+            GROUP BY
+                actor_id, director_id
+            ORDER BY
+                COUNT(*) DESC, actor_id ASC, director_id ASC
+            {count};
+            """
+            )
+            print('actor id, director id, # movies\n- - - -')
+            for a, d, m in cur: print(f'    a={a}, d={d}, # movies = {m}')
+            print('- - - -')
         except Exception as e:
             print('get_actor_director_pairs: exception:', repr(e))
 
+
 def get_user_genres(conn):
-	"""Get, for each user, which genre(s) that user is most likely to watch."""
-	
-	with conn.cursor() as cur:
-		try:
-			cur.exeucte("""
-			WITH
-				(SELECT user_id, genre, COUNT(*) c
-				 FROM history H
-					JOIN movie M ON H.movie_id = M.id
-				 GROUP BY
-					user_id, genre
-				) as user_genre_counts,
-		
-				(SELECT user_id, MAX(c)
-				 FROM user_genre_counts
-				 GROUP BY user_id
-				) as user_genre_max
-			
-			SELECT user_id, genre
-			FROM user_genre_counts
-			WHERE user_id, c IN user_genre_max
-			ORDER BY user_id;
-			"""
-			)
-			print('most common genre for each user:\n- - - -')
-			for u,g in cur: print(f'    user {u}: {g}')
-			print('- - - -')
+    """Get, for each user, which genre(s) that user is most likely to watch."""
+
+    with conn.cursor() as cur:
+        try:
+            cur.exeucte("""
+            WITH
+                (SELECT user_id, genre, COUNT(*) c
+                 FROM history H
+                    JOIN movie M ON H.movie_id = M.id
+                 GROUP BY
+                    user_id, genre
+                ) as user_genre_counts,
+
+                (SELECT user_id, MAX(c)
+                 FROM user_genre_counts
+                 GROUP BY user_id
+                ) as user_genre_max
+
+            SELECT user_id, genre
+            FROM user_genre_counts
+            WHERE user_id, c IN user_genre_max
+            ORDER BY user_id;
+            """
+            )
+            print('most common genre for each user:\n- - - -')
+            for u, g in cur: print(f'    user {u}: {g}')
+            print('- - - -')
         except Exception as e:
             print('get_user_genres: exception:', repr(e))
 
+
 def get_highest_grossing_studios(conn):
-	"""Get the total gross amount earned by each studio, in descending order."""
-    
+    """Get the total gross amount earned by each studio, in descending order."""
+
     with conn.cursor() as cur:
         try:
-			cur.execute(
-			"""
-			SELECT studio_name, SUM(gross_income) revenue
-			FROM produce JOIN movie M
-				ON (P.movie_id = M.id)
-			GROUP BY
-				studio_name
-			ORDER BY revenue;
-			"""
-			)
-			for s,r in cur:
-				print(f'{s}: total income = {r}')
+            cur.execute(
+            """
+            SELECT studio_name, SUM(gross_income) revenue
+            FROM produce JOIN movie M
+                ON (P.movie_id = M.id)
+            GROUP BY
+                studio_name
+            ORDER BY revenue;
+            """
+            )
+            for s,r in cur:
+                print(f'{s}: total income = {r}')
         except Exception as e:
             print('get_highest_grossing_studios: exception:', repr(e))
 
@@ -735,19 +736,19 @@ def leave_a_review(conn):
         try:
             cur.execute(
                 """
-			SELECT user_id,movie_id
-			FROM review
-			WHERE user_id = %s AND movie_id = %s;
-			""",
+            SELECT user_id,movie_id
+            FROM review
+            WHERE user_id = %s AND movie_id = %s;
+            """,
                 (user_id, movie_id)
             )
             if next(cur, None) is None:
                 cur.execute(
                     """
-				INSERT INTO review
-					(user_id, movie_id, date, rating, content)
-				VALUES (%s, %s, %s, %s, %s);
-				""",
+                INSERT INTO review
+                    (user_id, movie_id, date, rating, content)
+                VALUES (%s, %s, %s, %s, %s);
+                """,
                     (user_id, movie_id, date, rating, review)
                 )
             else:
@@ -761,13 +762,13 @@ def leave_a_review(conn):
                 if proceed:
                     cur.execute(
                         """
-					UDPATE review SET
-						(date, rating, content)
-						=
-						(%s, %s, %s)
-					WHERE
-						user_id = %s AND movie_id = %s;
-					""",
+                    UDPATE review SET
+                        (date, rating, content)
+                        =
+                        (%s, %s, %s)
+                    WHERE
+                        user_id = %s AND movie_id = %s;
+                    """,
                         (date, rating, review, user_id, movie_id)
                     )
         except Exception as e:
@@ -782,13 +783,13 @@ def sign_user_up_for_plan_today(conn):
         try:
             cur.execute(
                 """
-			SELECT *
-			FROM subscription S JOIN plan P ON (S.plan_name = plan.name)
-			WHERE
-				user_id = %s AND
-				start_date <= CURRENT_DATE() AND
-				start_date + month_length >= CURRENT_DATE();
-			""",
+            SELECT *
+            FROM subscription S JOIN plan P ON (S.plan_name = plan.name)
+            WHERE
+                user_id = %s AND
+                start_date <= CURRENT_DATE() AND
+                start_date + month_length >= CURRENT_DATE();
+            """,
                 (id,)
             )
             if next(cur, None) is not None:
@@ -804,10 +805,10 @@ def sign_user_up_for_plan_today(conn):
         try:
             cur.execute(
                 """
-			INSERT INTO subscription
-				(user_id, plan_name, start_date)
-			VALUES (%s, %s, %s);
-			""",
+            INSERT INTO subscription
+                (user_id, plan_name, start_date)
+            VALUES (%s, %s, %s);
+            """,
                 (id, name, date)
             )
         except Exception as e:
@@ -823,13 +824,13 @@ def sign_user_up_for_future_plan(conn):
         try:
             cur.execute(
                 """
-			SELECT *
-			FROM subscription S JOIN plan P ON (S.plan_name = plan.name)
-			WHERE
-				user_id = %s AND
-				start_date <= %s AND
-				start_date + month_length >= %s;
-			""",
+            SELECT *
+            FROM subscription S JOIN plan P ON (S.plan_name = plan.name)
+            WHERE
+                user_id = %s AND
+                start_date <= %s AND
+                start_date + month_length >= %s;
+            """,
                 (id, date, date)
             )
             if next(cur, None) is not None:
@@ -845,10 +846,10 @@ def sign_user_up_for_future_plan(conn):
         try:
             cur.execute(
                 """
-			INSERT INTO subscription
-				(user_id, plan_name, start_date)
-			VALUES (%s, %s, %s);
-			""",
+            INSERT INTO subscription
+                (user_id, plan_name, start_date)
+            VALUES (%s, %s, %s);
+            """,
                 (id, name, date)
             )
         except Exception as e:
@@ -869,11 +870,11 @@ def add_user(conn):
         try:
             cur.execute(
                 """
-			INSERT INTO users
-				(first_name, last_name, email, phone, pwd, info, join_time)
-			VALUES (%s, %s, %s, %s, %s, %s, %s)
-			RETURNING id;
-			""",
+            INSERT INTO users
+                (first_name, last_name, email, phone, pwd, info, join_time)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING id;
+            """,
                 values+(date,)
             )
             printc('g', f'added user {cur.fetchone()[0]}')
@@ -890,9 +891,9 @@ def remove_user(conn):
         try:
             cur.execute(
                 """
-			DELETE FROM users
-			WHERE id=%s;
-			""",
+            DELETE FROM users
+            WHERE id=%s;
+            """,
                 (id,)
             )
             printc('g', f'deleted user {id}')
@@ -960,9 +961,9 @@ def add_movie(conn, *, id_parse=ACTOR_ID_PARSE, info_cap=MAX_INFO_SIZE):
         try:
             cur.execute(
                 """
-			INSERT INTO movies
-				(title, url, director_id, date_produced, info)
-			VALUES (%s, %s, %s, %s, %s) RETURNING id;""",
+            INSERT INTO movies
+                (title, url, director_id, date_produced, info)
+            VALUES (%s, %s, %s, %s, %s) RETURNING id;""",
                 (title, url, director_id, date, info)
             )
             movie_id = cur.fetchone()[0]
@@ -973,17 +974,17 @@ def add_movie(conn, *, id_parse=ACTOR_ID_PARSE, info_cap=MAX_INFO_SIZE):
                 if is_main:
                     cur.execute(
                         """
-					INSERT INTO act
-						(actor_id, movie_id, if_main)
-					VALUES (%s, %s, %s);""",
+                    INSERT INTO act
+                        (actor_id, movie_id, if_main)
+                    VALUES (%s, %s, %s);""",
                         (actor_id, movie_id, 'true')
                     )
                 else:
                     cur.execute(
                         """
-					INSERT INTO act
-						(actor_id, movie_id)
-					VALUES (%s, %s);""",
+                    INSERT INTO act
+                        (actor_id, movie_id)
+                    VALUES (%s, %s);""",
                         (actor_id, movie_id)
                     )
 
@@ -993,7 +994,7 @@ def add_movie(conn, *, id_parse=ACTOR_ID_PARSE, info_cap=MAX_INFO_SIZE):
         except Exception as e:
             print('add_movie: error:', repr(e))
             conn.rollback()
-            #printc('r', ...)
+            # printc('r', ...)
             # make sure ROLLBACK if failure
             ...
     conn.autocommit = True
@@ -1019,17 +1020,17 @@ def add_actors_to_movie(conn, *, id_parse=ACTOR_ID_PARSE):
                 if is_main:
                     cur.execute(
                         """
-					INSERT INTO act
-						(actor_id, movie_id, if_main)
-					VALUES (%s, %s, %s);""",
+                    INSERT INTO act
+                        (actor_id, movie_id, if_main)
+                    VALUES (%s, %s, %s);""",
                         (actor_id, movie_id, 'true')
                     )
                 else:
                     cur.execute(
                         """
-					INSERT INTO act
-						(actor_id, movie_id)
-					VALUES (%s, %s);""",
+                    INSERT INTO act
+                        (actor_id, movie_id)
+                    VALUES (%s, %s);""",
                         (actor_id, movie_id)
                     )
             # COMMIT changes
@@ -1053,8 +1054,8 @@ def track_watch_event(conn, *, fields=('user id', 'movie id')):
         try:
             cur.execute(
                 """
-			INSERT INTO history
-			(user_id,movie_id, <date>) VALUES (%s, %s, %s);""",
+            INSERT INTO history
+            (user_id,movie_id, <date>) VALUES (%s, %s, %s);""",
                 (u, m, d)
             )
             print('operation successful')  # "<PRINT SUCCESS>"
@@ -1064,8 +1065,8 @@ def track_watch_event(conn, *, fields=('user id', 'movie id')):
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 _func_mapping = {
-	str(i):f for i,f in enumerate(sorted
-	((
+    str(i):f for i,f in enumerate(sorted
+    ((
         get_active_movies,
         get_highest_rated_actors, ## redo for new schema
         get_highest_rated_directors, ## redo for new schema
@@ -1093,23 +1094,42 @@ _func_mapping = {
 }
 
 if __name__ == '__main__':
-    user = input("Enter database user: ")
+   
+    connect_port = "5432"
+    if (platform.system()=='Windows'):
+        #  ssh tunnel enable this program runs on any device
+        #  remember install sshtunnel first: $pip install sshtunnel
 
-    if (platform.system() == 'Windows'):
-        # create ssh tunnel
-        tunnel = SSHTunnelForwarder(
-            ('rocco.cs.wm.edu', 11536),
-            ssh_username='lwang24',
-            ssh_password='1rujiwang',
-            remote_bind_address=('localhost', 5432)  # database
-        )
+        from sshtunnel import SSHTunnelForwarder
+        #create ssh tunnel
+        tunnel =  SSHTunnelForwarder(
+            ('rocco.cs.wm.edu',11536), 
+            ssh_username = 'lwang24',
+            ssh_password = '1rujiwang',
+            remote_bind_address = ('localhost',5432) #database
+            ) 
         tunnel.start()
-    print("SSh tunnel connected:",
-          "\n\tlocal bind host:", tunnel.local_bind_host,
-          "\n\tlocal bind port:", tunnel.local_bind_port, "\n")
-    connect_port = tunnel.local_bind_port
-    conn = psycopg2.connect(host="localhost", port=5432,
-                            dbname="skynetflix_small", user=user)
+        print ("SSh tunnel connected:",
+        "\n\tlocal bind host:",tunnel.local_bind_host,
+        "\n\tlocal bind port:",tunnel.local_bind_port,"\n") 
+        connect_port = tunnel.local_bind_port 
+
+    # create database connection
+    user = input("Enter database user: ")
+    # todo: choose database between 'skynetflix_small' and 'skynetflix_big' ? 
+    database = 'skynetflix_small'
+    conn = psycopg2.connect(
+        database=database,
+        user=user,
+        host='localhost',
+        port=connect_port
+    )
+    cur = conn.cursor()
+
+    ################
+
+
+
 
     conn.autocommit = True  # as recommended by documentation
 
