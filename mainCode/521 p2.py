@@ -1,9 +1,3 @@
-"""
-TO DO
-    * specific error handling
-    * print formatting
-"""
-
 import sys
 import re
 import itertools as it
@@ -17,6 +11,12 @@ from psycopg2.extras import execute_batch
 
 
 import platform
+
+"""
+TO DO
+    * specific error handling
+    * print formatting
+"""
 
 MAX_ID_SIZE = 50
 MAX_INFO_SIZE = 500
@@ -1113,7 +1113,7 @@ if __name__ == '__main__':
         "\n\tlocal bind host:",tunnel.local_bind_host,
         "\n\tlocal bind port:",tunnel.local_bind_port,"\n") 
         connect_port = tunnel.local_bind_port 
-
+        
     # create database connection
     user = input("Enter database user: ")
     # todo: choose database between 'skynetflix_small' and 'skynetflix_big' ? 
@@ -1137,7 +1137,7 @@ if __name__ == '__main__':
 
     printc('b', '**** AVAILABLE FUNCTIONS:')
     for i, f in sorted((int(i), f) for i, f in _func_mapping.items()):
-        printc('dg', f.__name__.replace('_', ' '))
+        printc('dg', i, f.__name__.replace('_', ' '))
 
     while True:
         try:
@@ -1151,5 +1151,5 @@ if __name__ == '__main__':
             print('top-level exception:', repr(e))
 
     conn.close()
-
+    tunnel.stop()
     printc('b', '\n-- -- -- -- -- -- -- --\nExiting...')
