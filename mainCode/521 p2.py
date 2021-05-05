@@ -357,18 +357,18 @@ def get_highest_rated_actors(conn, *, fields=PRIMARY_FIELDS):
         try:
             cur.execute(
                 f"""
-                SELECT
-                    first_name || ' ' || last_name AS name,
-                    AVG(review.rating) avg_rating
-                FROM
-                    actors A
-                    JOIN act ON (act.actor_id = A.id)
-                    JOIN review R ON (act.movie_id = R.movie_id)
-                {where}
-                GROUP BY name
-                ORDER BY avg_rating
-                {count};
-                """,
+				SELECT
+					first_name || ' ' || last_name AS name,
+					AVG(R.rating) avg_rating
+				FROM
+					actor A
+					JOIN act ON (act.actor_id = A.id)
+					JOIN review R ON (act.movie_id = R.movie_id)
+				{where}
+				GROUP BY name
+				ORDER BY avg_rating
+				{count};
+				""",
                 values
             )
             print('*** CURSOR RESULTS:', list(cur))  # "<PRINT THE RESULTS>"
@@ -394,18 +394,18 @@ def get_highest_rated_directors(conn, *, fields=PRIMARY_FIELDS):
         try:
             cur.execute(
                 """
-                SELECT
-                    first_name || ' ' || last_name AS name,
-                    AVG(review.rating) avg_rating
-                FROM
-                    directors D
-                    JOIN direct ON (act.director_id = D.id)
-                    JOIN review R ON (direct.movie_id =R.movie_id)
-                {where}
-                GROUP BY name
-                ORDER BY avg_rating
-                {count};
-                """,
+				SELECT
+					first_name || ' ' || last_name AS name,
+					AVG(R.rating) avg_rating
+				FROM
+					director D
+					JOIN direct ON (act.director_id = D.id)
+					JOIN review R ON (direct.movie_id = R.movie_id)
+				{where}
+				GROUP BY name
+				ORDER BY avg_rating
+				{count};
+				""",
                 values
             )
             print('*** CURSOR RESULTS:', list(cur))  # "<PRINT THE RESULTS>"
@@ -505,18 +505,18 @@ def get_highest_rated_movies(
         try:
             cur.execute(
                 f"""
-                WITH average_ratings AS
-                    (SELECT movie_id, AVG(rating) avg_r
-                     FROM review
-                     GROUP BY movie_id
-                    )
-
-                SELECT title, average_ratings.avg_r AS average_rating
-                FROM movie JOIN average_ratings AR
-                    ON movie.id = AR.movie_id
-                {where}
-                ORDER BY average_ratings.avg_r DESC
-                {count};""",
+				WITH average_ratings AS
+					(SELECT movie_id, AVG(rating) avg_r
+					 FROM review
+					 GROUP BY movie_id
+					)
+				
+				SELECT title, AR.avg_r AS average_rating
+				FROM movie JOIN average_ratings AR
+					ON movie.id = AR.movie_id
+				{where}
+				ORDER BY AR.avg_r DESC
+				{count};""",
                 values
             )
             print('*** CURSOR RESULTS:', list(cur))  # "<PRINT THE RESULTS>"
@@ -534,21 +534,25 @@ def ending_subscriptions(conn, *, options=set('dwm'),
 
     # month = 30 days, week = 7 days
     window = conv[simple_select(prompt, options)]
-    # get ending times of subscriptions within window
+    
+    # because postgresql doesn't understand referencing a
+    # column alias just created
+    end_date = 'start_date + month_length'
+    
     with conn.cursor() as cur:
         try:
             cur.execute(
             f"""
-            SELECT
-                U.first_name || ' ' || U.last_name AS name,
-                start_date + month_length AS end_date
-            FROM
-                subscription S
-                JOIN plan P ON (S.plan_name = P.name)
-                JOIN users U ON (U.id = S.user_id)
-            WHERE
-                end_date - CURRENT_DATE() <= INTEGER {window}
-            ORDER BY end_date DESC;"""
+			SELECT
+				U.first_name || ' ' || U.last_name AS name,
+				{end_date} AS end_date
+			FROM
+				subscription S
+				JOIN plan P ON (S.plan_name = P.name)
+				JOIN users U ON (U.id = S.user_id)
+			WHERE
+				{end_date} - CURRENT_DATE <= {window}
+			ORDER BY {end_date} DESC;"""
                 # direct input of `window` by formatting is okay here
                 # since the inputs are restricted by the `conv` dictionary
             )
@@ -564,14 +568,14 @@ def generate_subscription_counts(conn):
     with conn.cursor() as cur:
         try:
             cur.execute(
-                """
-            SELECT name, COUNT(*) count
-            FROM subscriptions S JOIN plan P ON (S.plan_name = P.name)
-            WHERE
-                start_date < CURRENT_DATE()
-                AND start_date + month_length > CURRENT_DATE()
-            GROUP BY name;
             """
+			SELECT name, COUNT(*) count
+			FROM subscription S JOIN plan P ON (S.plan_name = P.name)
+			WHERE
+				start_date < CURRENT_DATE
+				AND start_date + month_length > CURRENT_DATE
+			GROUP BY name;
+			"""
             )
             # pretty print as table
             for plan, count in cur:
@@ -593,17 +597,17 @@ def subscription_history(conn):
     with conn.get_cursor() as cur:
         try:
             cur.execute(
-                f"""
-            SELECT
-                DATE_PART('year',start_date) year,
-                DATE_PART('month',start_date) month,
-                plan_name,
-                COUNT(*)
-            FROM subscription
-            WHERE CURRENT_DATE()-start_date <= INTERVAL '{m}'
-            GROUP BY plan_name, year, month
-            ORDER BY year DESC, month DESC, plan_name ASC;
-            """
+            f"""
+			SELECT 
+				DATE_PART('year',start_date) AS year,
+				DATE_PART('month',start_date) AS month,
+				plan_name,
+				COUNT(*)
+			FROM subscription
+			WHERE CURRENT_DATE-start_date <= {m}
+			GROUP BY plan_name, year, month
+			ORDER BY year DESC, month DESC, plan_name ASC;
+			"""
             )
             # TO DO: pretty print in table
             for year, group in it.groupby(cur, lambda tup: tup[0]):
@@ -617,21 +621,23 @@ def subscription_history(conn):
 def get_user_current_subscription_window(conn):
     """For a given user id, get the start and end dates of his current subscription."""
     id = menu_selections('user id')
+	
+	end_date = 'start_date + month_length'
 
     with conn.cursor() as cur:
         try:
             cur.execute(
-                """
-            SELECT
-                start_date,
-                start_date + month_length AS end_date
-            FROM
-                subscription S JOIN plan P ON (S.plan_name = P.name)
-            WHERE
-                user_id = %s AND
-                start_date <= CURRENT_DATE() AND
-                end_date >= CURRENT_DATE();
-            """,
+            f"""
+			SELECT
+				start_date,
+				{end_date} AS end_date
+			FROM
+				subscription S JOIN plan P ON (S.plan_name = P.name)
+			WHERE
+				user_id = %s AND
+				start_date <= CURRENT_DATE AND
+				{end_date} >= CURRENT_DATE;
+			""",
                 (id,)
             )
             if next(cur, None) is None:
@@ -650,15 +656,15 @@ def get_actor_director_pairs(conn):
         try:
             cur.execute(
             """
-            SELECT actor_id, director_id, COUNT(*) num_movies
-            FROM
-                act A JOIN director D ON (A.movie_id = D.movie_id)
-            GROUP BY
-                actor_id, director_id
-            ORDER BY
-                COUNT(*) DESC, actor_id ASC, director_id ASC
-            {count};
-            """
+			SELECT actor_id, director_id, COUNT(*) num_movies
+			FROM
+				act A JOIN direct D ON (A.movie_id = D.movie_id)
+			GROUP BY
+				actor_id, director_id
+			ORDER BY
+				COUNT(*) DESC, actor_id ASC, director_id ASC
+			{count};
+			"""
             )
             print('actor id, director id, # movies\n- - - -')
             for a, d, m in cur: print(f'    a={a}, d={d}, # movies = {m}')
@@ -672,25 +678,28 @@ def get_user_genres(conn):
 
     with conn.cursor() as cur:
         try:
-            cur.exeucte("""
-            WITH
-                (SELECT user_id, genre, COUNT(*) c
-                 FROM history H
-                    JOIN movie M ON H.movie_id = M.id
-                 GROUP BY
-                    user_id, genre
-                ) as user_genre_counts,
-
-                (SELECT user_id, MAX(c)
-                 FROM user_genre_counts
-                 GROUP BY user_id
-                ) as user_genre_max
-
-            SELECT user_id, genre
-            FROM user_genre_counts
-            WHERE user_id, c IN user_genre_max
-            ORDER BY user_id;
+            cur.exeucte(
             """
+			WITH
+				user_genre_counts as
+				(SELECT user_id, genre, COUNT(*) c
+				 FROM history H
+					JOIN movie M ON H.movie_id = M.id
+				 GROUP BY
+					user_id, genre
+				),
+		
+				user_genre_max as
+				(SELECT user_id, MAX(c) mc
+				 FROM user_genre_counts
+				 GROUP BY user_id
+				)
+			
+			SELECT user_id, genre
+			FROM user_genre_counts NATURAL JOIN user_genre_max
+			WHERE c = mc
+			ORDER BY user_id;
+			"""
             )
             print('most common genre for each user:\n- - - -')
             for u, g in cur: print(f'    user {u}: {g}')
@@ -735,7 +744,7 @@ def leave_a_review(conn):
     with conn.cursor() as cur:
         try:
             cur.execute(
-                """
+            """
             SELECT user_id,movie_id
             FROM review
             WHERE user_id = %s AND movie_id = %s;
@@ -782,13 +791,13 @@ def sign_user_up_for_plan_today(conn):
     with conn.cursor() as cur:
         try:
             cur.execute(
-                """
+            """
             SELECT *
-            FROM subscription S JOIN plan P ON (S.plan_name = plan.name)
-            WHERE
-                user_id = %s AND
-                start_date <= CURRENT_DATE() AND
-                start_date + month_length >= CURRENT_DATE();
+			FROM subscription S JOIN plan P ON (S.plan_name = P.name)
+			WHERE
+				user_id = %s AND
+				start_date <= CURRENT_DATE AND
+				start_date + month_length >= CURRENT_DATE;
             """,
                 (id,)
             )
@@ -804,7 +813,7 @@ def sign_user_up_for_plan_today(conn):
     with conn.cursor() as cur:
         try:
             cur.execute(
-                """
+            """
             INSERT INTO subscription
                 (user_id, plan_name, start_date)
             VALUES (%s, %s, %s);
@@ -823,13 +832,13 @@ def sign_user_up_for_future_plan(conn):
     with conn.cursor() as cur:
         try:
             cur.execute(
-                """
+            """
             SELECT *
-            FROM subscription S JOIN plan P ON (S.plan_name = plan.name)
-            WHERE
-                user_id = %s AND
-                start_date <= %s AND
-                start_date + month_length >= %s;
+			FROM subscription S JOIN plan P ON (S.plan_name = P.name)
+			WHERE
+				user_id = %s AND
+				start_date <= %s AND
+				start_date + month_length >= %s;
             """,
                 (id, date, date)
             )
@@ -890,7 +899,7 @@ def remove_user(conn):
     with conn.cursor() as cur:
         try:
             cur.execute(
-                """
+            """
             DELETE FROM users
             WHERE id=%s;
             """,
@@ -960,7 +969,7 @@ def add_movie(conn, *, id_parse=ACTOR_ID_PARSE, info_cap=MAX_INFO_SIZE):
         # (adding movie and actors) succeeds
         try:
             cur.execute(
-                """
+            """
             INSERT INTO movies
                 (title, url, director_id, date_produced, info)
             VALUES (%s, %s, %s, %s, %s) RETURNING id;""",
@@ -973,7 +982,7 @@ def add_movie(conn, *, id_parse=ACTOR_ID_PARSE, info_cap=MAX_INFO_SIZE):
                 actor_id, is_main = actor_id.groups()
                 if is_main:
                     cur.execute(
-                        """
+                    """
                     INSERT INTO act
                         (actor_id, movie_id, if_main)
                     VALUES (%s, %s, %s);""",
@@ -981,7 +990,7 @@ def add_movie(conn, *, id_parse=ACTOR_ID_PARSE, info_cap=MAX_INFO_SIZE):
                     )
                 else:
                     cur.execute(
-                        """
+                    """
                     INSERT INTO act
                         (actor_id, movie_id)
                     VALUES (%s, %s);""",
@@ -1019,7 +1028,7 @@ def add_actors_to_movie(conn, *, id_parse=ACTOR_ID_PARSE):
                 actor_id, is_main = actor_id.groups()
                 if is_main:
                     cur.execute(
-                        """
+                    """
                     INSERT INTO act
                         (actor_id, movie_id, if_main)
                     VALUES (%s, %s, %s);""",
@@ -1027,7 +1036,7 @@ def add_actors_to_movie(conn, *, id_parse=ACTOR_ID_PARSE):
                     )
                 else:
                     cur.execute(
-                        """
+                    """
                     INSERT INTO act
                         (actor_id, movie_id)
                     VALUES (%s, %s);""",
@@ -1053,7 +1062,7 @@ def track_watch_event(conn, *, fields=('user id', 'movie id')):
     with conn.cursor() as cur:
         try:
             cur.execute(
-                """
+            """
             INSERT INTO history
             (user_id,movie_id, <date>) VALUES (%s, %s, %s);""",
                 (u, m, d)
