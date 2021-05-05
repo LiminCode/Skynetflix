@@ -2,23 +2,8 @@ import java.text.DecimalFormat;
 import java.util.*;
 
 public class Utilities {
-	Dictionary grades;
 	Dictionary colors;
     public Utilities() {
-    	grades = new Hashtable();
-        grades.put("A", "4.0");
-        grades.put("A-", "3.7");
-        grades.put("B+", "3.3");
-        grades.put("B", "3.0");
-        grades.put("B-", "2.7");
-        grades.put("C+", "2.3");
-        grades.put("C", "2.0");
-        grades.put("C-", "1.7");
-        grades.put("D+", "1.3");
-        grades.put("D", "1.0");
-        grades.put("D-", "0.7");
-        grades.put("F", "0.0");
-        grades.put("N/A", "0.0");
         colors = new Hashtable();
         colors.put("r", "31");
         colors.put("dr", "31");
