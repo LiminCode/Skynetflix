@@ -44,6 +44,8 @@ public class Skynetflix {
 		  			                   "\t(16) leave a review\n" +
 		  			                   "\t(17) relist movie\n" +
 		  			                   "\t(18) remove user\n" +
+		  			                   "\t(19)  -- add director\n" +
+		  			                   "\t(20)  -- add studio\n" +
 		  			                   "Enter an integer or enter 'q' to exit: \n");
 
 		        String call = scan.next();
@@ -114,6 +116,12 @@ public class Skynetflix {
 		        		break;
 		        	case 18:
 		        		task.remove_user(conn);
+		        		break;
+		        	case 19:
+		        		task.add_director(conn);
+		        		break;
+		        	case 20:
+		        		task.add_studio(conn);
 		        		break;
 			        default:
 			          System.out.println(utility.as_bold_color("[!!!]","r")+"Not a valid action: "+number);
