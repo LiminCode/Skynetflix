@@ -1,132 +1,129 @@
 
---
-DROP   TABLE IF EXISTS users CASCADE;
-create table users
-(
-    id SERIAL PRIMARY KEY,
-    first_name varchar(30), 
-    last_name varchar(30), 
-    email varchar(50) NOT NULL, 
-    phone_number varchar(20), 
-    password varchar(256)
-);
-
-
---
-DROP  TABLE IF EXISTS director CASCADE;
-create table director
-(
-    id SERIAL PRIMARY KEY,
-    first_name varchar(30)  NOT NULL, 
-    last_name varchar(30)  NOT NULL, 
-    info varchar(256)
-);
---
-DROP  TABLE IF EXISTS genre CASCADE;
-create table genre
-(
-    name varchar(50) PRIMARY KEY,
-    info varchar(200)
-);
---
-DROP  TABLE IF EXISTS studio CASCADE;
-create table studio
-(
-    name varchar(50) PRIMARY KEY,
-    date_founded date
-);
-
---
-DROP  TABLE IF EXISTS movie CASCADE;
-create table movie
-(
-    id SERIAL PRIMARY KEY,
-    title varchar(50)  NOT NULL, 
-    url varchar(100), 
-    genre varchar(50) references genre(name), 
-    studio varchar(50) references studio(name),
-    director INTEGER references director(id),
-    date_produced date,
-    total_rating_count INTEGER,
-    total_rating INTEGER,
-    available boolean,
-    summary varchar(256)
-);
-
---
-DROP   TABLE IF EXISTS actor CASCADE;
-create table actor
-(
-    id SERIAL PRIMARY KEY,
-    first_name varchar(30)  NOT NULL, 
-    last_name varchar(30)  NOT NULL, 
-    info varchar(256)
-);
-
-
-
-
-
---
-DROP  TABLE IF EXISTS plan CASCADE;
+DROP TABLE IF EXISTS plan;
 create table plan
 (
-    name varchar(50) PRIMARY KEY,
-    month_length INTERVAL,
-    total_price numeric(15,3)
+    name            varchar(50),
+    month_length    numeric(2,0),
+    total_price     numeric(15,2),
+    primary key (name)
 );
-
 --
-DROP  TABLE IF EXISTS subscription CASCADE;
+DROP TABLE IF EXISTS director;
+create table director
+(
+    id            varchar(5),
+    first_name    varchar(20),
+    last_name     varchar(20) not null,
+    age           varchar(3) check (age > 0),
+    primary key (id)
+);
+--
+DROP TABLE IF EXISTS studio;
+create table studio
+(
+    name          varchar(20),
+    date_founded  date,
+    budget        numeric(12,2) check (budget > 0),
+    primary key (name)
+);
+--
+DROP TABLE IF EXISTS actor;
+create table actor
+(
+    id            varchar(10),
+    first_name    varchar(30),
+    last_name     varchar(30) not null,
+    gender        varchar(1),
+    age           varchar(3) check (age > 0),
+    primary key (id)
+);
+--
+DROP TABLE IF EXISTS users;
+create table users
+(
+    id            varchar(5),
+    first_name    varchar(20),
+    last_name     varchar(20) not null,
+    email         varchar(50) not null,
+    phone_number  varchar(10),
+    password      varchar(30) not null,
+    primary key (id)
+);
+--
+DROP  TABLE IF EXISTS movie;
+create table movie
+(
+    id             varchar(10),
+    title          varchar(50)  NOT NULL,
+    url            varchar(100),
+    genre          varchar(30),
+    date_released  date,
+    rating         varchar(5),
+    budget         numeric(12,2) check (budget > 0),
+    gross_income   numeric(12,2),
+    summary        varchar(255),
+    studio         varchar(20),
+    director_id    varchar(10),
+    primary key (id),
+    foreign key (studio) references studio (name)
+            on delete set null,
+    foreign key (director_id) references director (id)
+            on delete set null,
+);
+--
+DROP TABLE IF EXISTS subscription;
 create table subscription
 (
-    user_id INTEGER references users(id),
-    plan_name varchar(50) references plan(name),
-    start_date date,
-    purchased_date date,
-    PRIMARY KEY( user_id, plan_name, start_date)
+    user_id         varchar(10),
+    plan_name       varchar(50),
+    start_date      date not null,
+    purchased_date  date,
+    primary key (user_id, plan_name, start_date)
+    foreign key (user_id) references user (id)
+            on delete cascade,
+    foreign key (plan_name) references plan (name)
+            on delete cascade
 );
-
 --
 DROP TABLE IF EXISTS history;
 create table history
 (
-    user_id INTEGER references users(id),
-    movie_id INTEGER references movie(id),
-    watch_time date,
-    --is_finished boolean,
-    PRIMARY KEY( user_id, movie_id)
+    user_id         varchar(10),
+    movie_id        varchar(10),
+    watch_date      date not null,
+    is_finished     boolean,
+    primary key (user_id, movie_id),
+    foreign key (user_id) references user (id)
+            on delete cascade,
+    foreign key (movie_id) references movie (id),
+            on delete cascade
 );
-
---
-DROP TABLE IF EXISTS progress;
-create table progress
-(
-    user_id INTEGER references users(id),
-    movie_id INTEGER references movie(id),
-    last_timestamp INTERVAL,
-    PRIMARY KEY( user_id, movie_id)
-);
-
 --
 DROP TABLE IF EXISTS review;
 create table review
 (
-    user_id INTEGER references users(id),
-    movie_id INTEGER references movie(id),
-    date date,
-    rating numeric(3,1) NOT NULL,
-    content varchar(256),
-    PRIMARY KEY( user_id, movie_id)
+    user_id         varchar(10),
+    movie_id        varchar(10),
+    review_date     date,
+    rating          numeric(3,1) check (rating >= 0 and rating <= 100) not null,
+    content         varchar(256),
+    primary key (user_id, movie_id),
+    foreign key (user_id) references user (id)
+            on delete cascade,
+    foreign key (movie_id) references movie (id)
+            on delete cascade
 );
-
 --
 DROP TABLE IF EXISTS act;
 create table act
 (
-    actor_id INTEGER references actor(id),
-    movie_id INTEGER references movie(id),
-    if_main boolean,
-    role varchar(50) NOT NULL,
-    PRIMARY KEY( actor_id, movie_id)
+    movie_id        varchar(10),
+    actor_id        varchar(10),
+    if_main         boolean,
+    role            varchar(50) not null,
+    primary key (movie_id, actor_id),
+    foreign key (movie_id) references movie (id)
+            on delete cascade,
+    foreign key (actor_id) references actor (id)
+            on delete cascade
 );
