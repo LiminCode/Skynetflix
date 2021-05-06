@@ -116,6 +116,9 @@ public class Task {
 	   * */
 	  public void get_busiest_users(Connection conn){}
 	  
+	  
+	  
+	  public void get_highest_grossing_studios(Connection conn){}
 	  /* Which actors have the highest associated movie ratings?
        * Calculate an actor's rating as the average rating across all the movies he starred in
 	   * */

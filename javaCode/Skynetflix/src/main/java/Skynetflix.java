@@ -58,59 +58,62 @@ public class Skynetflix {
 		        	break;
 		        }
 		        switch(number){ // TODO --- replace the methods when finish
-		        	case 1:
-		        		task.get_active_movies(conn);
+		        	case 0:
+		        		task.add_actors_to_movie(conn);
 		        		break;
-		        	case 2:
+		        	case 1:
 		        		task.add_movie(conn);
 		        		break;
+		        	case 2:
+		        		task.add_user(conn);
+		        		break;
 		        	case 3:
-		        		task.get_active_movies(conn);
+		        		task.delist_movie(conn);
 		        		break;
 		        	case 4:
-		        		task.get_active_movies(conn);
+		        		task.ending_subscriptions(conn);
 		        		break;
 		        	case 5:
-		        		task.get_active_movies(conn);
+		        		task.generate_subscription_counts(conn);
 		        		break;
 		        	case 6:
 		        		task.get_active_movies(conn);
 		        		break;
 		        	case 7:
-		        		task.get_active_movies(conn);
+		        		task.get_actor_director_pairs(conn);
 		        		break;
 		        	case 8:
-		        		task.get_active_movies(conn);
+		        		task.get_busiest_users(conn);
 		        		break;
 		        	case 9:
-		        		task.get_active_movies(conn);
+		        		task.get_highest_grossing_studios(conn);
 		        		break;
 		        	case 10:
-		        		task.get_active_movies(conn);
+		        		task.get_highest_rated_actors(conn);
 		        		break;
 		        	case 11:
-		        		task.get_active_movies(conn);
+		        		task.get_highest_rated_directors(conn);
 		        		break;
 		        	case 12:
-		        		task.get_active_movies(conn);
+		        		task.get_highest_rated_movies(conn);
 		        		break;
 		        	case 13:
-		        		task.get_active_movies(conn);
+		        		task.get_popular_movies(conn);
 		        		break;
 		        	case 14:
-		        		task.get_active_movies(conn);
+		        		task.get_user_current_subscription_window(conn);
 		        		break;
 		        	case 15:
-		        		task.get_active_movies(conn);
+		        		task.get_user_genres(conn);
 		        		break;
-		        	case 116:
-		        		task.get_active_movies(conn);
+		        	case 16:
+		        		task.leave_a_review(conn);
 		        		break;
 		        	case 17:
-		        		task.get_active_movies(conn);
+		        		task.relist_movie(conn);
 		        		break;
 		        	case 18:
-		        		task.get_active_movies(conn);
+		        		task.remove_user(conn);
 		        		break;
 			        default:
 			          System.out.println(utility.as_bold_color("[!!!]","r")+"Not a valid action: "+number);
