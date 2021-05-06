@@ -63,42 +63,25 @@ def printc(color, *args, **kw):
 
 # all relations
 """
- Schema |      Name       |   Type   
---------+-----------------+----------
- public | act             | table    
- public | actor           | table    
- public | actor_id_seq    | sequence 
- public | director        | table    
- public | director_id_seq | sequence 
- public | genre           | table    
- public | history         | table    
- public | movie           | table    
- public | movie_id_seq    | sequence 
- public | plan            | table    
- public | progress        | table    
- public | review          | table    
- public | studio          | table    
- public | subscription    | table    
- public | users           | table    
- public | users_id_seq    | sequence 
 """
 
 # act
 """
-                        Table "public.act"
-  Column  |         Type          | Collation | Nullable | Default 
-----------+-----------------------+-----------+----------+---------
- actor_id | integer               |           | not null | 
- movie_id | integer               |           | not null | 
- if_main  | boolean               |           |          | 
- role     | character varying(50) |           | not null | 
-Indexes:
-    "act_pkey" PRIMARY KEY, btree (actor_id, movie_id)
-Foreign-key constraints:
-    "act_actor_id_fkey" FOREIGN KEY (actor_id) REFERENCES actor(id)
-    "act_movie_id_fkey" FOREIGN KEY (movie_id) REFERENCES movie(id)
+create table act
+(
+    movie_id        varchar(10),
+    actor_id        varchar(10),
+    if_main         boolean,
+    role            varchar(50) not null,
+
+    primary key (movie_id, actor_id),
+    foreign key (movie_id) references movie (id)
+            on delete cascade,
+    foreign key (actor_id) references actor (id)
+            on delete cascade
+);
 """
-def populate_act():
+def populate_act(conn):
 	with conn.cursor() as cur:
 		try:
 			cur.execute("SELECT id FROM actor;")
@@ -118,36 +101,38 @@ def populate_act():
 			return
 	
 	actor_ids_per_movie = [
-		tuple(np.random.choice(
+		np.random.choice(
 			actors,
-			size = np.random.randint(3,11),
+			size = np.random.randint(5,20),
 			replace=False
-		))
+		)
 		for m in movies
 	]
 	
+	# simplifying assumption: each movie has one main actor
 	main = [(True,)+(False,)*len(a-1) for a in actor_ids_per_movie]
 	role = [tuple(f'role {i}' for i,id in enumerate(a,1)) for a in actor_ids_per_movie]
-	full_insert_list = [
-		(a,m,b,r)
-		for m,z in zip(movies,zip(actor_ids_per_movie, main, role))
-			for a,b,r in it.chain.from_iterable(zip(_) for _ in z)
+	act_insert_list = [
+		(m,*i)
+		for m,a,b,r in zip(movies,actor_ids_per_movie, main, role)
+		for i in zip(a,b,r)
 	]
 	
-	print('full_insert_list:')
-	for _ in full_insert_list: print(_)
-	return
+	print(f'act_insert_list: {len(act_insert_list)} entries to be inserted')
+# 	for _ in act_insert_list: print(_)
+# 	return
 	
 	with conn.cursor() as cur:
 		try:
 			execute_batch(cur,
 				"""
-				INSERT INTO act (actor_id, movie_id, if_main, role)
+				INSERT INTO act (movie_id, actor_id, if_main, role)
 				VALUES (%s, %s, %s, %s);
 				""",
-				full_insert_list
+				act_insert_list
 			)
 			conn.commit()
+			printc('g',f'success: inserted {len(act_insert_list)} into `act`')
 		except Exception as e:
 			print('populate act: fill act: exception:', repr(e))
 			conn.rollback()
@@ -155,19 +140,18 @@ def populate_act():
 
 # actor
 """
-                                      Table "public.actor"
-   Column   |          Type          | Collation | Nullable |              Default              
-------------+------------------------+-----------+----------+-----------------------------------
- id         | integer                |           | not null | nextval('actor_id_seq'::regclass)
- first_name | character varying(30)  |           | not null | 
- last_name  | character varying(30)  |           | not null | 
- info       | character varying(256) |           |          | 
-Indexes:
-    "actor_pkey" PRIMARY KEY, btree (id)
-Referenced by:
-    TABLE "act" CONSTRAINT "act_actor_id_fkey" FOREIGN KEY (actor_id) REFERENCES actor(id)
+create table actor
+(
+    id            varchar(10),
+    first_name    varchar(30),
+    last_name     varchar(30) not null,
+    gender        varchar(1),
+    age           varchar(3) check (age > 0),
+
+    primary key (id)
+);
 """
-def populate_actor(conn, *, count = 300):
+def populate_actor(conn, *, count = 500):
 	actors = range(count)
 	
 	# keep things simple here
@@ -175,7 +159,7 @@ def populate_actor(conn, *, count = 300):
 	last_names = (f'actor {i} last' for i in actors)
 # 	infos = (f'some info about actor {i}' for i in actors) # wound up not including this
 	genders = np.random.choice(['m','f'], size=count, replace=True)
-	ages = np.random.randint(20, 61, count)
+	ages = np.random.randint(20, 81, count)
 	
 	del ages,genders
 	
@@ -197,25 +181,22 @@ def populate_actor(conn, *, count = 300):
 
 # director
 """
-                                      Table "public.director"
-   Column   |          Type          | Collation | Nullable |               Default                
-------------+------------------------+-----------+----------+--------------------------------------
- id         | integer                |           | not null | nextval('director_id_seq'::regclass)
- first_name | character varying(30)  |           | not null | 
- last_name  | character varying(30)  |           | not null | 
- info       | character varying(256) |           |          | 
-Indexes:
-    "director_pkey" PRIMARY KEY, btree (id)
-Referenced by:
-    TABLE "movie" CONSTRAINT "movie_director_fkey" FOREIGN KEY (director) REFERENCES director(id)
+create table director
+(
+    id            varchar(5),
+    first_name    varchar(20),
+    last_name     varchar(20) not null,
+    age           varchar(3) check (age > 0),
+    primary key (id)
+);
 """
-def populate_director(conn, *, count = 300):
+def populate_director(conn, *, count = 500):
 	directors = range(count)
 	
 	# keep things simple here
 	first_names = (f'director {i} first' for i in directors)
 	last_names = (f'director {i} last' for i in directors)
-	ages = np.random.randint(30, 71, count)
+	ages = np.random.randint(30, 81, count)
 	director_insert_list = list(zip(first_names, last_names, ages))
 	
 	del ages
@@ -264,18 +245,19 @@ def populate_director(conn, *, count = 300):
 
 # history
 """
-                 Table "public.history"
-   Column    |  Type   | Collation | Nullable | Default 
--------------+---------+-----------+----------+---------
- user_id     | integer |           | not null | 
- movie_id    | integer |           | not null | 
- watch_time  | date    |           |          | 
- is_finished | boolean |           |          | 
-Indexes:
-    "history_pkey" PRIMARY KEY, btree (user_id, movie_id)
-Foreign-key constraints:
-    "history_movie_id_fkey" FOREIGN KEY (movie_id) REFERENCES movie(id)
-    "history_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id)
+create table history
+(
+    user_id         varchar(10),
+    movie_id        varchar(10),
+    watch_date      date not null,
+    is_finished     boolean,
+
+    primary key (user_id, movie_id),
+    foreign key (user_id) references user (id)
+            on delete cascade,
+    foreign key (movie_id) references movie (id),
+            on delete cascade
+);
 """
 
 ####  THIS HAS TO BE UPDATED
@@ -313,11 +295,6 @@ def populate_history(conn):
 	history_insert_list = []
 	
 	for user in users:
-		choice = np.random.choice(
-			m
-			size = np.random.randint(1,n)
-			replace = True
-		)
 		
 		# this is the complete history of movies for this user
 		#
@@ -337,12 +314,24 @@ def populate_history(conn):
 				movies_dates[i][0], # movie id
 				# user watched this movie some random time
 				# between when it was first produced and today
-				movies_dates[i][1] + np.random.randint((today - movies_dates[i][1]).days),
+				
+				# use if-else here because np.random.randint raises an error
+				# with argument 0, which happens if the movie was produced today
+				today if movies_dates[i][1]==today
+					else
+					movies_dates[i][1] + dt.timedelta(
+						np.random.randint((today - movies_dates[i][1]).days)
+					)
 				
 			)
-			for i in choice
+			for i in np.random.choice(m,
+									  size = np.random.randint(1,n),
+									  replace = True)
 		}
-		history_insert_list.extend((*c, '<time>') for c in choice)
+		is_finished = np.random.randint(2, size = len(choice), dtype=bool)
+		history_insert_list.extend((*c, f) for c,f in zip(choice, is_finished))
+	
+	del is_finished, choice, m
 	
 	with conn.cursor() as cur:
 		try:
@@ -360,54 +349,50 @@ def populate_history(conn):
 
 # movie
 """
-                                        Table "public.movie"
-     Column     |          Type          | Collation | Nullable |              Default              
-----------------+------------------------+-----------+----------+-----------------------------------
- id             | integer                |           | not null | nextval('movie_id_seq'::regclass)
- title          | character varying(50)  |           | not null | 
- url            | character varying(100) |           |          | 
- genre          | character varying(50)  |           |          | 
- studio         | character varying(50)  |           |          | 
- director       | integer                |           |          | 
- date_produced  | date                   |           |          | 
- average_rating | numeric(3,1)           |           |          | 
- available      | boolean                |           |          | 
- summary        | character varying(256) |           |          | 
-Indexes:
-    "movie_pkey" PRIMARY KEY, btree (id)
-Foreign-key constraints:
-    "movie_director_fkey" FOREIGN KEY (director) REFERENCES director(id)
-    "movie_genre_fkey" FOREIGN KEY (genre) REFERENCES genre(name)
-    "movie_studio_fkey" FOREIGN KEY (studio) REFERENCES studio(name)
-Referenced by:
-    TABLE "act" CONSTRAINT "act_movie_id_fkey" FOREIGN KEY (movie_id) REFERENCES movie(id)
-    TABLE "history" CONSTRAINT "history_movie_id_fkey" FOREIGN KEY (movie_id) REFERENCES movie(id)
-    TABLE "progress" CONSTRAINT "progress_movie_id_fkey" FOREIGN KEY (movie_id) REFERENCES movie(id)
-    TABLE "review" CONSTRAINT "review_movie_id_fkey" FOREIGN KEY (movie_id) REFERENCES movie(id)
+create table movie
+(
+    id             varchar(10),
+    title          varchar(50)  NOT NULL,
+    url            varchar(100),
+    genre          varchar(30),
+    date_released  date,
+    rating         varchar(5),
+    budget         numeric(12,2) check (budget > 0),
+    gross_income   numeric(12,2),
+    summary        varchar(255),
+    studio         varchar(20),
+    director_id    varchar(10),
+
+    primary key (id),
+    foreign key (studio) references studio (name)
+            on delete set null,
+    foreign key (director_id) references director (id)
+            on delete set null,
+);
 """
 
 ####  THIS HAS TO BE UPDATED
 
-def populate_movie_without_ratings(conn):
-# 	with conn.cursor() as cur:
-# 		try:
-# 			cur.execute("SELECT name,date_founded FROM studio;")
-# 			studios,dates = zip(*cur)
-# 			conn.commit()
-# 		except Exception as e:
-# 			print('populate movie: select studios & dates: exception:',repr(e))
-# 			conn.rollback()
-# 			return
-# 	
-# 	with conn.cursor() as cur:
-# 		try:
-# 			cur.execute("SELECT id FROM director;")
-# 			directors = tuple(cur)
-# 			conn.commit()
-# 		except Exception as e:
-# 			print('populate movie: select director ids: exception:',repr(e))
-# 			conn.rollback()
-# 			return
+def populate_movie(conn):
+	with conn.cursor() as cur:
+		try:
+			cur.execute("SELECT name,date_founded FROM studio;")
+			studios,dates = zip(*cur)
+			conn.commit()
+		except Exception as e:
+			print('populate movie: select studios & dates: exception:',repr(e))
+			conn.rollback()
+			return
+	
+	with conn.cursor() as cur:
+		try:
+			cur.execute("SELECT id FROM director;")
+			directors = tuple(map(int,cur))
+			conn.commit()
+		except Exception as e:
+			print('populate movie: select director ids: exception:',repr(e))
+			conn.rollback()
+			return
 # 
 # 	with conn.cursor() as cur:
 # 		try:
@@ -418,6 +403,9 @@ def populate_movie_without_ratings(conn):
 # 			print('populate movie: select genres: exception:',repr(e))
 # 			conn.rollback()
 # 			return
+	
+	# choose randomly from 10 genres
+	genres = tuple(f'genre {i}' for genre in np.random.randint(1,11,num_movies))
 	
 	num_movies = 10000
 	
@@ -430,7 +418,7 @@ def populate_movie_without_ratings(conn):
 	# optimistic
 	budgets = incomes - np.random.randint(10**7,5*10**7,num_movies)
 	
-	insert = "(title, url, genre, budget, gross_income, date_released, summary)"
+	insert = "(title, url, genre, date_released, budget, rating, gross_income, summary, studio, director_id)"
 	
 	i = np.random.choice(
 		np.arange(len(studios)),
@@ -443,6 +431,15 @@ def populate_movie_without_ratings(conn):
 	
 	intervals = [((dt.date().today()-d) - dt.timedelta(10)).days for d in dates]
 	dates = tuple(d + i for d,i in zip(dates,np.random.randint(intervals)))
+	del intervals
+	
+	directors = np.random.choice(
+		directors,
+		size = num_movies,
+		replace = True
+	)
+	
+	ratings = np.random.choice(['G','PG','PG-13','R'], size=num_movies, replace=True)
 	
 	movie_insert_list = [
 		(
@@ -451,11 +448,15 @@ def populate_movie_without_ratings(conn):
 			genre,
 			date,
 			budget,
+			rating,
 			income,
-			f'summary about movie {m}'
+			f'summary about movie {m}',
+			studio,
+			director
 		)
-		for m,url,genre,date,budget,income in zip(
-			movies, urls, genres, dates, studios, budgets, incomes
+		for m,url,genre,date,budget,income,studio,director in zip(
+			movies, urls, genres, dates, studios,
+			budgets, ratings, incomes, studios, directors
 		)
 	]
 	
@@ -466,28 +467,26 @@ def populate_movie_without_ratings(conn):
 				INSERT INTO movie
 					{insert}
 				VALUES
-					(%s, %s, %s, %s, %s, %s, %s);
+					(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
 				""",
 				movie_insert_list
 			)
 			conn.commit()
 		except Exception as e:
-			print('populate_movie_without_ratings: movie insertion: exception:',repr(e))
+			print('populate_movie: movie insertion: exception:',repr(e))
 			conn.rollback()
 			return
 
 # plan
 """
-                          Table "public.plan"
-    Column    |         Type          | Collation | Nullable | Default 
---------------+-----------------------+-----------+----------+---------
- name         | character varying(50) |           | not null | 
- month_length | interval              |           |          | 
- total_price  | numeric(15,3)         |           |          | 
-Indexes:
-    "plan_pkey" PRIMARY KEY, btree (name)
-Referenced by:
-    TABLE "subscription" CONSTRAINT "subscription_plan_name_fkey" FOREIGN KEY (plan_name) REFERENCES plan(name)
+create table plan
+(
+    name            varchar(50),
+    month_length    numeric(2,0),
+    total_price     numeric(15,2),
+
+    primary key (name)
+);
 """
 def populate_plan(conn):
 	plans = ('basic','plus','premium')
@@ -563,79 +562,80 @@ def populate_plan(conn):
 # 			conn.rollback()
 
 # produce
-"""
-"""
-def populate_produce():
-	with conn.cursor() as cur:
-		try:
-			cur.execute(
-			"""
-			SELECT name FROM studio;
-			"""
-			)
-			studios = tuple(cur)
-			conn.commit()
-		except Exception as e:
-			print('populate_produce: select studio names: exception:',repr(e))
-			conn.rollback()
-			return
-	
-	with conn.cursor() as cur:
-		try:
-			cur.execute(
-			"""
-			SELECT id FROM movie;
-			"""
-			)
-			studios = tuple(cur)
-			conn.commit()
-		except Exception as e:
-			print('populate_produce: select movies: exception:',repr(e))
-			conn.rollback()
-			return
-	
-	studios = np.random.choice(
-		studios,
-		size=len(movies),
-		replace=True
-	)
-	
-	produce_insert_list = list(zip(movies,studios))
-	n = len(produce_insert_list)
-	
-	with conn.cursor() as cur:
-		try:
-			execute_batch(cur,
-			"""
-			INSERT INTO produce
-				(studio_name, movie_id)
-			VALUES (%s, %s);
-			""",
-			produce_insert_list
-			)
-			printc('g', f'successfully inserted {n} entries into `produce` relation')
-			conn.commit()
-		except Exception as e:
-			print('populate_produce: insert entries: exception:',repr(e))
-			conn.rollback()
+# """
+# """
+# def populate_produce():
+# 	with conn.cursor() as cur:
+# 		try:
+# 			cur.execute(
+# 			"""
+# 			SELECT name FROM studio;
+# 			"""
+# 			)
+# 			studios = tuple(cur)
+# 			conn.commit()
+# 		except Exception as e:
+# 			print('populate_produce: select studio names: exception:',repr(e))
+# 			conn.rollback()
+# 			return
+# 	
+# 	with conn.cursor() as cur:
+# 		try:
+# 			cur.execute(
+# 			"""
+# 			SELECT id FROM movie;
+# 			"""
+# 			)
+# 			studios = tuple(cur)
+# 			conn.commit()
+# 		except Exception as e:
+# 			print('populate_produce: select movies: exception:',repr(e))
+# 			conn.rollback()
+# 			return
+# 	
+# 	studios = np.random.choice(
+# 		studios,
+# 		size=len(movies),
+# 		replace=True
+# 	)
+# 	
+# 	produce_insert_list = list(zip(movies,studios))
+# 	n = len(produce_insert_list)
+# 	
+# 	with conn.cursor() as cur:
+# 		try:
+# 			execute_batch(cur,
+# 			"""
+# 			INSERT INTO produce
+# 				(studio_name, movie_id)
+# 			VALUES (%s, %s);
+# 			""",
+# 			produce_insert_list
+# 			)
+# 			printc('g', f'successfully inserted {n} entries into `produce` relation')
+# 			conn.commit()
+# 		except Exception as e:
+# 			print('populate_produce: insert entries: exception:',repr(e))
+# 			conn.rollback()
 
 # review
 """
-                       Table "public.review"
-  Column  |          Type          | Collation | Nullable | Default 
-----------+------------------------+-----------+----------+---------
- user_id  | integer                |           | not null | 
- movie_id | integer                |           | not null | 
- date     | date                   |           |          | 
- rating   | numeric(3,1)           |           | not null | 
- content  | character varying(256) |           |          | 
-Indexes:
-    "review_pkey" PRIMARY KEY, btree (user_id, movie_id)
-Foreign-key constraints:
-    "review_movie_id_fkey" FOREIGN KEY (movie_id) REFERENCES movie(id)
-    "review_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id)
+create table review
+(
+    user_id         varchar(10),
+    movie_id        varchar(10),
+    review_date     date,
+    rating          numeric(3,1) check (rating >= 0 and rating <= 100) not null,
+    content         varchar(256),
+
+    primary key (user_id, movie_id),
+    foreign key (user_id) references user (id)
+            on delete cascade,
+    foreign key (movie_id) references movie (id)
+            on delete cascade
+);
 """
-def populate_review_and_movie_ratings(conn):
+def populate_review(conn):
 	with conn.cursor() as cur:
 		try:
 			# user cannot review a movie before the first watch event
@@ -689,7 +689,7 @@ def populate_review_and_movie_ratings(conn):
 			execute_batch(cur,
 				"""
 				INSERT INTO review
-					(user_id, movie_id, date, rating, content)
+					(user_id, movie_id, review_date, rating, content)
 				VALUES
 					(%s, %s, %s, %s, %s);
 				""",
@@ -697,23 +697,25 @@ def populate_review_and_movie_ratings(conn):
 			)
 			printc('g','populate review: inserted reviews')
 			
-			cur.execute(
-			"""
-			UPDATE movie
-			SET
-				total_rating_count = (
-					SELECT COUNT(*)
-					FROM review
-					WHERE movie.id = review.movie_id
-				),
-				total_rating = (
-					SELECT SUM(rating)
-					FROM review
-					WHERE movie.id = review.movie_id
-				)
-			"""
-			)
-			printc('g','populate review: updated movie ratings')
+			# for prior version of schema
+			
+# 			cur.execute(
+# 			"""
+# 			UPDATE movie
+# 			SET
+# 				total_rating_count = (
+# 					SELECT COUNT(*)
+# 					FROM review
+# 					WHERE movie.id = review.movie_id
+# 				),
+# 				total_rating = (
+# 					SELECT SUM(rating)
+# 					FROM review
+# 					WHERE movie.id = review.movie_id
+# 				)
+# 			"""
+# 			)
+# 			printc('g','populate review: updated movie ratings')
 			
 			conn.commit()
 			printc('g','populate review: finished')
@@ -725,15 +727,14 @@ def populate_review_and_movie_ratings(conn):
 
 # studio
 """
-                         Table "public.studio"
-    Column    |         Type          | Collation | Nullable | Default 
---------------+-----------------------+-----------+----------+---------
- name         | character varying(50) |           | not null | 
- date_founded | date                  |           |          | 
-Indexes:
-    "studio_pkey" PRIMARY KEY, btree (name)
-Referenced by:
-    TABLE "movie" CONSTRAINT "movie_studio_fkey" FOREIGN KEY (studio) REFERENCES studio(name)
+create table studio
+(
+    name          varchar(20),
+    date_founded  date,
+    budget        numeric(12,2) check (budget > 0),
+
+    primary key (name)
+);
 """
 def populate_studio(conn):
 	with conn.cursor() as cur:
@@ -741,30 +742,32 @@ def populate_studio(conn):
 			for i in range(10):
 				cur.execute(
 				"""
-				INSERT INTO studio (name, date_founded)
-				VALUES (%s, %s);
+				INSERT INTO studio (name, date_founded, budget)
+				VALUES (%s, %s, %s);
 				""",
-				(f'studio {i}',dt.date.today())
+				(f'studio {i}',dt.date.today(), np.random.randint(3*10**9,10**10+1))
 				)
 			conn.commit()
+			printc('g','studio table populated')
 		except Exception as e:
 			print('populate studio: insert studios: exception occurred:',repr(e))
 			conn.rollback()
 
 # subscription
 """
-                       Table "public.subscription"
-     Column     |         Type          | Collation | Nullable | Default 
-----------------+-----------------------+-----------+----------+---------
- user_id        | integer               |           | not null | 
- plan_name      | character varying(50) |           | not null | 
- start_date     | date                  |           | not null | 
- purchased_date | date                  |           |          | 
-Indexes:
-    "subscription_pkey" PRIMARY KEY, btree (user_id, plan_name, start_date)
-Foreign-key constraints:
-    "subscription_plan_name_fkey" FOREIGN KEY (plan_name) REFERENCES plan(name)
-    "subscription_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id)
+create table subscription
+(
+    user_id         varchar(10),
+    plan_name       varchar(50),
+    start_date      date not null,
+    purchased_date  date,
+
+    primary key (user_id, plan_name, start_date)
+    foreign key (user_id) references user (id)
+            on delete cascade,
+    foreign key (plan_name) references plan (name)
+            on delete cascade
+);
 """
 def populate_subscription(conn):
 	with conn.cursor() as cur:
@@ -792,7 +795,7 @@ def populate_subscription(conn):
 			return
 	
 	# generate random history of subscriptions
-	# for each user, his history stars from the first date he watched a movie
+	# for each user, his history starts from the first date he watched a movie
 	# purchase date for any subscription is set to some
 	# random time between 1 and 10 days before its start date
 	subscription_insert_list = []
@@ -826,21 +829,17 @@ def populate_subscription(conn):
 
 # users
 """
-                                       Table "public.users"
-    Column    |          Type          | Collation | Nullable |              Default              
---------------+------------------------+-----------+----------+-----------------------------------
- id           | integer                |           | not null | nextval('users_id_seq'::regclass)
- first_name   | character varying(30)  |           |          | 
- last_name    | character varying(30)  |           |          | 
- email        | character varying(50)  |           | not null | 
- phone_number | character varying(20)  |           |          | 
- password     | character varying(256) |           |          | 
-Indexes:
-    "users_pkey" PRIMARY KEY, btree (id)
-Referenced by:
-    TABLE "history" CONSTRAINT "history_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id)
-    TABLE "review" CONSTRAINT "review_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id)
-    TABLE "subscription" CONSTRAINT "subscription_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id)
+create table users
+(
+    id            varchar(5),
+    first_name    varchar(20),
+    last_name     varchar(20) not null,
+    email         varchar(50) not null,
+    phone_number  varchar(10),
+    password      varchar(30) not null,
+
+    primary key (id)
+);
 """
 def populate_users(conn):
 	count = 100000
@@ -882,37 +881,24 @@ def populate_users(conn):
 			print('populate users: insert users: exception:',repr(e))
 			conn.rollback()
 
+# all tables
 """
- Schema |      Name       |   Type   
---------+-----------------+----------
- public | act             | table    
- public | actor           | table    
- public | director        | table    
- public | genre           | table    
- public | history         | table    
- public | movie           | table    
- public | plan            | table    
- public | progress        | table    
- public | review          | table    
- public | studio          | table    
- public | subscription    | table    
- public | users           | table    
 """
 
 """
 TABLE			DEPENDENCIES (other tables that must exist first)
 actor			<none>
 director		<none>
--genre			<none>
+-genre				<none>
 plan			<none>
 studio			<none>
 users			<none>
 
 movie			studio, director, genre
-produce			studio, movie
+-produce			studio, movie
 act				actor, movie
 history			movie, users
--progress		history
+-progress			history
 review			history
 subscription	history
 """
@@ -930,12 +916,12 @@ if __name__ == '__main__':
 	populate_studio(conn)
 	populate_users(conn)
 	
-	populate_movie_without_ratings(conn)
-	populate_produce()
+	populate_movie(conn)
+# 	populate_produce() # (not used)
 	populate_act(conn)
 	populate_history(conn)
 # 	populate_progress(conn) # (removed)
-	populate_review_and_movie_ratings(conn)
+	populate_review(conn)
 	populate_subscription(conn)
 	
 	print('all tables filled; exiting')
