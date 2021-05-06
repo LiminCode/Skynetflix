@@ -1,9 +1,10 @@
 import java.sql.*;
-
+import java.util.Calendar;
+import java.util.Date;
 
 public class Task {
 	  Utilities utility = new Utilities();  // for print in color
-	
+	  DateUtil dateUtil = new DateUtil();
 	  /*
 	   * Add new actors to an already existing movie
 	   * */
@@ -47,9 +48,117 @@ public class Task {
 		}
 		System.out.println(utility.as_bold_color("[iii]","g")+" Query Active Movie finished.");
 	  }
-
-	  public void add_user(Connection conn){}
 	  
+	  //--------OK
+	  public void add_user(Connection conn){
+		  System.out.println(utility.as_bold_color("[iii]","g")+" Add User ======>");
+		  String[] fileds = new String[]{"First Name","Last Name","Email","Phone Number", "Password"};
+		  Utilities utility = new Utilities();
+		  String[] values = utility.menu_selections(fileds);
+		  String sql = "INSERT INTO users  (first_name, last_name, email,phone_number, password) VALUES (?, ?, ?, ?,?)";
+			PreparedStatement statement=null;
+		    try {
+		      statement  = conn.prepareStatement(sql);
+		      statement.setString(1, values[0]);
+		      statement.setString(2, values[1]);
+		      statement.setString(3, values[2]);
+		      statement.setString(4, values[3]);
+		      statement.setString(5, values[4]);
+		      int row_added = statement.executeUpdate();
+		      System.out.println(utility.as_color("[SUCCESS]", "g")+"  >>>> Insert successful. row added:" + row_added);
+		    }catch (SQLException sqle){
+		      System.out.println("Could not insert user into db." + sqle);
+		    }catch (Exception  e){
+			      System.out.println("Could not insert user into db.");
+			      e.printStackTrace();
+			}finally{
+				try{
+			         if(statement!=null)
+			        	 statement.close();
+			      }catch(SQLException e){
+			    	 System.out.println("SQL error: ");
+			    	 e.printStackTrace();
+			      }//end finally try
+			}
+	  }
+	  //--------OK
+	  public void add_director(Connection conn){
+		  System.out.println(utility.as_bold_color("[iii]","g")+" Add Director ======>");
+		  String[] fileds = new String[]{"First Name","Last Name","age"};
+		  Utilities utility = new Utilities();
+		  String[] values = utility.menu_selections(fileds);
+		  String sql = "INSERT INTO director  (first_name, last_name,age) VALUES (?, ?, ?)";
+			PreparedStatement statement=null;
+			int age=0;
+			try {
+				age =Integer.parseInt(values[2]);
+			}catch (Exception  e){
+			      System.out.println("Not a valid age: "+values[2]);
+			      return;
+			}
+		    
+		    try {
+		      statement  = conn.prepareStatement(sql);
+		      statement.setString(1, values[0]);
+		      statement.setString(2, values[1]);
+		      statement.setInt(3, age);
+		      
+		      int row_added = statement.executeUpdate();
+		      System.out.println(utility.as_color("[SUCCESS]", "g")+"  >>>> Insert successful. row added:" + row_added);
+		    }catch (SQLException sqle){
+		      System.out.println("Could not insert director into db." + sqle);
+		    }catch (Exception  e){
+			      System.out.println("Could not insert director into db.");
+			      e.printStackTrace();
+			}finally{
+				try{
+			         if(statement!=null)
+			        	 statement.close();
+			      }catch(SQLException e){
+			    	 System.out.println("SQL error: ");
+			    	 e.printStackTrace();
+			      }//end finally try
+			}
+	  }
+	  //--------OK
+	  public void add_studio(Connection conn){
+		  System.out.println(utility.as_bold_color("[iii]","g")+" Add Studio ======>");
+		  String[] fileds = new String[]{"Studio Name","Founded date(YYYY-MM-DD)","budget"};
+		  Utilities utility = new Utilities();
+		  String[] values = utility.menu_selections(fileds);
+		  String sql = "INSERT INTO studio  (name, date_founded,budget) VALUES (?, ?, ?)";
+			PreparedStatement statement=null;
+			double budget=0;
+			try {
+				budget =Double.parseDouble(values[2]);
+			}catch (Exception  e){
+			      System.out.println("Not a valid budget: "+values[2]);
+			      return;
+			}
+		    
+		    try {
+		      statement  = conn.prepareStatement(sql);
+		      statement.setString(1, values[0]);
+		      statement.setDate(2, dateUtil.strToDate(values[1]));
+		      statement.setDouble(3, budget);
+		      
+		      int row_added = statement.executeUpdate();
+		      System.out.println(utility.as_color("[SUCCESS]", "g")+"  >>>> Insert successful. row added:" + row_added);
+		    }catch (SQLException sqle){
+		      System.out.println("Could not insert studio into db." + sqle);
+		    }catch (Exception  e){
+			      System.out.println("Could not insert studio into db.");
+			      e.printStackTrace();
+			}finally{
+				try{
+			         if(statement!=null)
+			        	 statement.close();
+			      }catch(SQLException e){
+			    	 System.out.println("SQL error: ");
+			    	 e.printStackTrace();
+			      }//end finally try
+			}
+	  }
 	  /*
 	   * "Set a movie's active status to false, meaning it is not actively streaming.
     Keep historical records of the movie being watched.
