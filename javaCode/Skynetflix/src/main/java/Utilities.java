@@ -32,12 +32,8 @@ public class Utilities {
 			for(int i=0;i<fields.length;i++) {
 				System.out.print("Enter "+fields[i]+": ");
 				String get = scan.nextLine();
-				if (!get.isBlank()){
-					res[i] = this.capitalize(get);
-				}else {
-					res[i] = get; //blank
-				}
-				
+				res[i] = get; //blank
+			 			
 			}
 			System.out.println("YOU ENTERED: ");
 			for(int i=0;i<fields.length;i++) {

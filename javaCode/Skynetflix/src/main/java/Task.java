@@ -16,37 +16,74 @@ public class Task {
 	  */
 	  public void add_movie(Connection conn){
 		  System.out.println(utility.as_bold_color("[iii]","g")+" Add New Movie ==>");
-		  PreparedStatement stmt=null;
-		  ResultSet res=null;
-		  String sql = "SELECT title from movie where available=true order by title;";
-		try {
-			stmt = conn.prepareStatement(sql);
-			res = stmt.executeQuery();
-			int i = 1;
-			
-		    while (res.next()){
-			      System.out.println(i+": "+res.getString(1));
-			      // todo: limit the print rows number
-			      i++;
+		  String[] fileds = new String[]{"Title","URL","genre","Released date (YYYY-MM-DD)", "budget", "Summary", "Studio", "Director ID"};
+		  Utilities utility = new Utilities();
+		  String[] values = utility.menu_selections(fileds);
+		  // check if Director and Studio exists
+		  int director_id =0;
+		  if (values[7].isBlank()==false){
+			  director_id = Integer.parseInt(values[7]);
+		  }
+		  
+		  if (this.check_director_exsist(conn, director_id)==false) {
+			  System.out.println(utility.as_bold_color("[!!!]","r")+" Director ID doesn't exsit, you might add director first.");
+			  return;
+		  }
+		  if (values[6].isBlank()==false) {
+
+			  if (this.check_studio_exsist(conn, values[6])==false) {
+				  System.out.println(utility.as_bold_color("[!!!]","r")+" Studio doesn't exsit. you might add director first.");
+				  return;
+			  }
+		  }
+			double budget=0;
+			if (values[4].isBlank()==false) {
+				try {
+					budget =Double.parseDouble(values[4]);
+				}catch (Exception  e){
+				      System.out.println("Not a valid budget: "+values[4]);
+				      return;
+				}
 			}
-		}catch(SQLException e){
-			System.out.println("Query Active Movie failed,SQL error: ");
-			e.printStackTrace();
- 		}catch(Exception e){
-			System.out.println("Query Active Movie failed, class error: ");
-			e.printStackTrace();
-		}finally{
-			 try{
-		         if(stmt!=null)
-		            stmt.close();
-		         if(res!=null)
-			        res.close();
-		      }catch(SQLException e){
-		    	 System.out.println("Query Active Movie failed,SQL error: ");
-		    	 e.printStackTrace();
-		      }//end finally try
-		}
-		System.out.println(utility.as_bold_color("[iii]","g")+" Query Active Movie finished.");
+			java.sql.Date movie_date;
+			try {
+				movie_date = dateUtil.strToDate(values[3]);
+				
+			}catch(Exception  e) {
+				System.out.println(utility.as_bold_color("[!!!]","r")+"Not a valid date: "+values[3]);
+			      return;
+			}
+			String sql = "INSERT INTO movie  (title, url, genre,date_released, budget, summary, studio, director_id) VALUES (?, ?, ?, ?,?,?,?,?)";
+			PreparedStatement statement=null;
+		    try {
+		      statement  = conn.prepareStatement(sql);
+		      
+		      statement.setString(1, values[0]); // title
+		      statement.setString(2, values[1]); // url
+		      statement.setString(3, values[2]); // genre
+		      statement.setDate(4, movie_date); // released date
+		      statement.setDouble(5, budget); // budget
+		      statement.setString(6, values[5]); // summary
+		      statement.setString(7, values[6]); // studio
+		      statement.setInt(8, director_id); // director_id
+		      
+		      int row_added = statement.executeUpdate();
+		      System.out.println(utility.as_color("[SUCCESS]", "g")+"  >>>> Insert successful. row added:" + row_added);
+		    }catch (SQLException sqle){
+		      System.out.println("Could not insert movie into db." + sqle);
+		    }catch (Exception  e){
+			      System.out.println("Could not insert movie into db.");
+			      e.printStackTrace();
+			}finally{
+				try{
+			         if(statement!=null)
+			        	 statement.close();
+			      }catch(SQLException e){
+			    	 System.out.println("SQL error: ");
+			    	 e.printStackTrace();
+			      }//end finally try
+			}
+		System.out.println(utility.as_bold_color("[iii]","g")+"Add new Movie finished.");
 	  }
 	  
 	  //--------OK
@@ -120,6 +157,68 @@ public class Task {
 			      }//end finally try
 			}
 	  }
+	  public boolean check_director_exsist(Connection conn, int id){
+
+		  String sql = "Select first_name, last_name, age from director where id = ?;";
+			PreparedStatement statement=null;
+			ResultSet res=null;
+		    try {
+		      statement  = conn.prepareStatement(sql);
+		       statement.setInt(1, id);
+		      
+		       res = statement.executeQuery();
+		       if (res.next()==false) {
+		    	   return false;
+		       }
+		      //System.out.println(utility.as_color("[SUCCESS]", "g")+"  >>>> Insert successful. row added:" + row_added);
+		    }catch (SQLException sqle){
+		      System.out.println("Could not query director." + sqle);
+		    }catch (Exception  e){
+			      System.out.println("Could not query director.");
+			      e.printStackTrace();
+			}finally{
+				try{
+			         if(statement!=null)
+			        	 statement.close();
+			      }catch(SQLException e){
+			    	 System.out.println("SQL error: ");
+			    	 e.printStackTrace();
+			      }//end finally try
+			}
+			  System.out.println(utility.as_bold_color("[iii]","g")+" Check Director ======> OK");
+			return true;
+	  }
+	  public boolean check_studio_exsist(Connection conn, String name){
+
+		  String sql = "Select name from studio where name = ?;";
+			PreparedStatement statement=null;
+			ResultSet res=null;
+		    try {
+		      statement  = conn.prepareStatement(sql);
+		       statement.setString(1, name);
+		      
+		       res = statement.executeQuery();
+		       if (res.next()==false) {
+		    	   return false;
+		       }
+		      //System.out.println(utility.as_color("[SUCCESS]", "g")+"  >>>> Insert successful. row added:" + row_added);
+		    }catch (SQLException sqle){
+		      System.out.println("Could not query studio." + sqle);
+		    }catch (Exception  e){
+			      System.out.println("Could not query studio.");
+			      e.printStackTrace();
+			}finally{
+				try{
+			         if(statement!=null)
+			        	 statement.close();
+			      }catch(SQLException e){
+			    	 System.out.println("SQL error: ");
+			    	 e.printStackTrace();
+			      }//end finally try
+			}
+			  System.out.println(utility.as_bold_color("[iii]","g")+" Check Studio ======> OK");
+			return true;
+	  }
 	  //--------OK
 	  public void add_studio(Connection conn){
 		  System.out.println(utility.as_bold_color("[iii]","g")+" Add Studio ======>");
@@ -177,12 +276,13 @@ public class Task {
 	   *  Generate counts of how many users are currently subscribed for each plan.
 	   * */
 	  public void generate_subscription_counts(Connection conn){}
+	  
 	  // Generate a list of all students and their advisors.
-	  public void get_active_movies(Connection conn){
-		  System.out.println(utility.as_bold_color("[iii]","g")+" Query Active Movies ==>");
+	  public void get_movies(Connection conn){
+		  System.out.println(utility.as_bold_color("[iii]","g")+" Query Movies ==>");
 		  PreparedStatement stmt=null;
 		  ResultSet res=null;
-		  String sql = "SELECT title from movie where available=true order by title;";
+		  String sql = "SELECT title from movie order by title;";
 		try {
 			stmt = conn.prepareStatement(sql);
 			res = stmt.executeQuery();

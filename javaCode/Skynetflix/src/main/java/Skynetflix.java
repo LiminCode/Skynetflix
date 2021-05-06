@@ -26,12 +26,12 @@ public class Skynetflix {
 		        System.out.println("\033[32;4m" + "=".repeat(50) + "\033[0m"+
 		        						"\nWhat would you like to do?\n" +
 		  			                   "\t(0) Add actors to movie\n" +
-		  			                   "\t(1) add movie\n" +
+		  			                   "\t(1) -- add movie\n" +
 		  			                   "\t(2) add user\n" +
 		  			                   "\t(3) delist movie\n" +
 		  			                   "\t(4) ending subscriptions\n" +
 		  			                   "\t(5) generate subscription counts\n" +
-		  			                   "\t(6) get active movies\n" +
+		  			                   "\t(6) -- get movies\n" +
 		  			                   "\t(7) get actor director pairs\n" +
 		  			                   "\t(8) get busiest users\n" +
 		  			                   "\t(9) get highest grossing studios\n" +
@@ -79,7 +79,7 @@ public class Skynetflix {
 		        		task.generate_subscription_counts(conn);
 		        		break;
 		        	case 6:
-		        		task.get_active_movies(conn);
+		        		task.get_movies(conn);
 		        		break;
 		        	case 7:
 		        		task.get_actor_director_pairs(conn);
