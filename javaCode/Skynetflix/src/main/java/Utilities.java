@@ -41,6 +41,7 @@ public class Utilities {
 			}
 			System.out.print("IS THIS CORRECT? (type 'y' without quotes to acknowledge): ");
 			confirm = scan.nextLine();
+
 			if(!confirm.isBlank()&& confirm.toLowerCase().charAt(0)=='y'){
 				break;
 			}

@@ -121,6 +121,34 @@ public class Task {
 			      }//end finally try
 			}
 	  }
+	  
+	  // get user by id
+	  public void get_user(Connection conn){
+		  System.out.println(utility.as_bold_color("[iii]","g")+" Get User info by ID ==>");
+		  String[] fileds = new String[]{"User ID"};
+		  Utilities utility = new Utilities();
+		  String[] values = utility.menu_selections(fileds);
+		  // check user
+		  int user_id =  parseIntwithName(values[0],"User ID");
+		  if (user_id==-1) {return;}
+		  List<Object> user_info = check_user_exists(conn, user_id);
+		  if (user_info.isEmpty()) {
+			  System.out.println(utility.as_color("[!!!]", "r")+">>> User ID not exsist.");
+			  return;
+		  }else {
+			  System.out.println(utility.as_color("[iii]", "g")+">>> User Infomation:");
+			  for (Object s: user_info) {
+		            System.out.println(s);
+		        }
+			  System.out.println("\t\t >>>ID: "+ user_info.get(0).toString());
+			  System.out.println("\t\t >>>First Name: "+ user_info.get(1).toString());
+			  System.out.println("\t\t >>>Last Name: "+ user_info.get(2).toString());
+			  System.out.println("\t\t >>>Email: "+ user_info.get(3).toString());
+			  System.out.println("\t\t >>>Phone Number: "+ user_info.get(4).toString());
+			  System.out.println("\t\t >>>Hashed Password: "+ user_info.get(5).toString());
+		  }
+		  System.out.println(utility.as_color("[iii]", "g")+">>> User Infomation finished.");
+	  }
 	  public List<Object> check_user_exists(Connection conn, int id) {
 		  String sql = "Select * from users where id = ?;";
 			PreparedStatement statement=null;
@@ -133,12 +161,12 @@ public class Task {
 		       res = statement.executeQuery();
 		       if (res.next()) {
 		    	   list.add(res.getInt(1)); //id
-		    	   list.add(res.getString(2)); //first name
+		    	   list.add(res.getString(2)==null?"":res.getString(2) ); //first name
 		    	   list.add(res.getString(3)); //last name
 		    	   list.add(res.getString(4)); //email
-		    	   list.add(res.getString(5)); //phone number
-		    	   list.add(res.getString(6)); //phone number
-		    	   System.out.println(utility.as_color("[iii]", "g")+"  >>>> User "+ id+" exsist: " + res.getString(2) +res.getString(3));
+		    	   list.add(res.getString(5)==null?"":res.getString(5) ); //phone number
+		    	   list.add(res.getString(6)==null?"":res.getString(6) ); //password
+		    	   System.out.println(utility.as_color("[iii]", "g")+"  >>>> User "+ id+" exsist: " + res.getString(2) +" "+res.getString(3));
 		       }else {
 		    	   System.out.println(utility.as_color("[iii]", "g")+"  >>>> User "+ id+" not exsist.");
 				    
@@ -174,13 +202,13 @@ public class Task {
 		       if (res.next()) {
 		    	   list.add(res.getInt(1)); //id
 		    	   list.add(res.getString(2)); //title
-		    	   list.add(res.getString(3)); //url
-		    	   list.add(res.getString(4)); //genre
-		    	   list.add(res.getString(5)); //date_released
-		    	   list.add(res.getString(6)); //rating
+		    	   list.add(res.getString(3)==null?"":res.getString(3)); //url
+		    	   list.add(res.getString(4)==null?"":res.getString(4)); //genre
+		    	   list.add(res.getString(5)==null?"":res.getString(5)); //date_released
+		    	   list.add(res.getString(6)==null?"":res.getString(6)); //rating
 		    	   list.add(res.getDouble(7)); //budget
 		    	   list.add(res.getDouble(8)); //gross income
-		    	   list.add(res.getString(9)); //summary
+		    	   list.add(res.getString(9)==null?"":res.getString(9)); //summary
 		    	   list.add(res.getString(10)); //studio
 		    	   list.add(res.getInt(11)); //director id
 		    	   

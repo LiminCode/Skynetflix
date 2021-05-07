@@ -46,6 +46,7 @@ public class Skynetflix {
 		  			                   "\t(18) remove user\n" +
 		  			                   "\t(19)  -ok- add director\n" +
 		  			                   "\t(20)  -ok- add studio\n" +
+		  			                   "\t(21)  -ok- get user info by id\n" +
 		  			                   "Enter an integer or enter 'q' to exit: \n");
 
 		        String call = scan.nextLine();
@@ -123,9 +124,15 @@ public class Skynetflix {
 		        	case 20:
 		        		task.add_studio(conn);
 		        		break;
-			        default:
+		        	case 21:
+		        		task.get_user(conn);
+		        		break;
+		        	default:
 			          System.out.println(utility.as_bold_color("[!!!]","r")+"Not a valid action: "+number);
 		        }
+		        System.out.println("Press Enter to continue ...");
+		        // press c to continue
+		        call = scan.nextLine();
 		 }
 		 System.out.println("\n-- -- -- -- -- -- -- --\nExiting...");
 		 dbConn.CloseConnection();
