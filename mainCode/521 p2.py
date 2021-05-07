@@ -911,39 +911,6 @@ def remove_user(conn):
         except Exception as e:
             print('remove_user: error:', repr(e))
 
-# Delist a movie
-
-
-def delist_movie(conn):
-    """Set a movie's active status to false, meaning it is not actively streaming.
-    Keep historical records of the movie being watched."""
-    m = menu_selections('movie id')
-    with conn.cursor() as cur:
-        try:
-            cur.execute(
-                """UPDATE movies SET available = 'false';"""
-            )
-            print('operation successful')  # "<PRINT SUCCESS>"
-        except Exception as e:
-            print('delist_movie: error:', repr(e))
-
-# relist a movie
-
-
-def relist_movie(conn):
-    """Set a movie's active status to true, meaning it is actively streaming.
-    The movie must already be present in the database.
-    Keep historical records of the movie being watched."""
-    m = menu_selections('movie id')
-    with conn.cursor() as cur:
-        try:
-            cur.execute(
-                """UPDATE movies SET available = 'true';"""
-            )
-            print('operation successful')  # "<PRINT SUCCESS>"
-        except Exception as e:
-            print('relist_movie: error:', repr(e))
-
 # Add a new movie, requiring that actors be specified in addition to fields in 'movies' table
 
 
@@ -1093,8 +1060,6 @@ _func_mapping = {
         sign_user_up_for_future_plan,
         add_user,
         remove_user,
-        delist_movie,
-        relist_movie,
         add_movie,
         add_actors_to_movie,
         track_watch_event,
