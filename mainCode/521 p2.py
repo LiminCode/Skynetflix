@@ -20,7 +20,9 @@ TO DO
 
 MAX_ID_SIZE = 50
 MAX_INFO_SIZE = 500
-PRIMARY_FIEDS = 0 # I don't know this key's value, added it just for error free. --Limin
+
+PRIMARY_FIELDS = ('genre\0', '# of results to return\0')
+DATE_FIELDS = ('opening date\0', 'closing date\0')
 ACTOR_ID_PARSE = re.compile('(\d{1,%i})([*]{,1})' % MAX_ID_SIZE)
 
 # more portable implementation might use a pypi packaged
@@ -61,6 +63,7 @@ def as_color(s, c):
     else:
         return s
 
+_c = as_color
 
 def as_bold_color(s, c):
     """Similar to `as_color`, but return string encoded to be bold and colored.
@@ -150,6 +153,7 @@ def custom_select(prompt, matcher, msg=None):
                 else:
                     msg = f'{msg}: re-enter here:'
                 printc('r', msg)
+                continue
         except Exception as e:
             #             printc('r', 'custom_select error: '+repr(e))
             raise
@@ -157,14 +161,9 @@ def custom_select(prompt, matcher, msg=None):
             return i, r
 
 
-def get_date(date_string,
-             matcher=re.compile(
-                 '(\d{1,2}\s+)?(\d{1,2}\s+)?(\d{4})'
-             ).search,
-             allow_empty=True
-             ):
+def get_date(date_string, allow_empty=True, pattern = re.compile('\d+')):
     """Accept a date string, which can take forms of
-    "[D[D]] [M[M]] YYYY" (enclosure in square brackets indicates optional input).
+    "YYYY [M[M]] [D[D]]" (enclosure in square brackets indicates optional input).
     If valid input is given, a `datetime.date` object is returned.
     If invalid input is given, the boolean value False is returned.
     If `allow_empty`, the date can be left empty, and '-' will be returned;
@@ -175,19 +174,42 @@ def get_date(date_string,
             # provide option of empty value
             return '-'
         return False
-    r = matcher(date_string)
+    r = [m.group() for m in pattern.finditer(date_string)]
+    print('r:',r)
+    if (not (0 < len(r) < 4)) or len(r[0])!=4:
+    	print('malformed year')
+    	return False
+    if any(not (0< len(s) < 3) for s in it.islice(r,1,None)):
+    	print('malformed other')
+    	return False
     try:
-        r = list(filter(r.groups()))
+        r = [int(s) for s in r]
         if len(r) == 1:
             return dt.date(r[0], 1, 1)
         if len(r) == 2:
-            return dt.date(r[1], r[0], 1)
-        return dt.date(r[2], r[1], r[0])
-    except (ValueError, AttributeError):
+            return dt.date(r[0], r[1], 1)
+        return dt.date(r[0], r[1], r[2])
+    except (ValueError, AttributeError) as e:
         # AttributeError if date_string is malformed
         # ValueError if date is invalid
         # both yield the same result: not a valid date
+        print('get date: error:',repr(e))
         return False
+
+def parse_dates(date_name, where, values):
+    """Take input for start date, end date from user, validating input.
+    Modify the `where` and `values` lists in place for the purpose of
+    constructing SQL code to filter based on provided dates. `date_name`
+    is the name of the field in the respective table that gives the date.
+    Returns nothing."""
+    start_date, end_date = filter_date_range()
+    # `date_name` is hard-coded, so directly inserting into query is safe
+    if start_date:
+        where.append(f'{date_name} >= %s')
+        values.append(start_date)
+    if end_date:
+        where.append(f'{date_name} <= %s')
+        values.append(end_date)
 
 
 def get_integer(istring, limit=120):
@@ -195,6 +217,7 @@ def get_integer(istring, limit=120):
     s = istring.strip()
     if not s.isdigit():
         return False
+    s = int(s)
     if s > limit:
         return False
     return s
@@ -255,88 +278,72 @@ def filter_return_count(f, values):
     return ''
 
 
-PRIMARY_FIELDS = ('genre\0', '# of results to return\0')
-DATE_FIELDS = ('opening date\0', 'closing date\0')
-
 
 def parse_genre(f, where, values):
     """Given mapping `f` of field names to inputted values, process user input
     corresopnding to a genre of movies. Modify `where` and `values` lists in place
     for the sake of constructing SQL code to filter results based on genre."""
-    genre = f.get('genre\0')
+    genre = f.get('genre\0','')
     if genre:
         where.append("genre=%s")  # let psycopg2 paratemerize query
         values.append(f['genre\0'])  # corresopnding user input string
+    return genre
 
-
-def parse_dates(date_name, where, values):
-    """Take input for start date, end date from user, validating input.
-    Modify the `where` and `values` lists in place for the purpose of
-    constructing SQL code to filter based on provided dates. `date_name`
-    is the name of the field in the respective table that gives the date.
-    Returns nothing."""
-    start_date, end_date = filter_date_range()
-    # `date_name` is hard-coded, so directly inserting into query is safe
-    if start_date:
-        where.append(f'{date_name} >= %s')
-        values.append(start_date)
-    if end_date:
-        where.append(f'{date_name} <= %s')
-        values.append(end_date)
-
+def pluralize(n, kind):
+	return f"{n} {kind}{'s' if n>1 else ''}"
 
 # # # # # # # # # # # # # # # # Queries # # # # # # # # # # # # # # # #
 
 
-def get_active_movies(
-        conn, *, fields=PRIMARY_FIELDS + ('keywords',),
-        prune_pattern=re.compile('([A-z]|[0-9]|\s)+'),
-        parse_pattern=re.compile('\S{1,20}') # don't understand this, so I remove '+' in '\S+{1,20}' to make it error free  --Limin
-):
-    """Get a list of movies that are actively available for streaming,
-    with options to filter by release date and genre, as well as keywords."""
-    print('obtaining active movie list...')
-    printc('b',
-           '** Note **: keywords, if provided, are logically joined by AND, not OR.'
-           ' May be provided in any order. Enter all keywords on one line,'
-           ' space-separated. Keywords longer than 20 characters will be truncated.'
-           ' Max 10 keywords will be processed.'
-           ' Symbols other than plain letters, spaces, or numbers will be ignored.'
-           )
-    where = []
-    values = []
-    f = {f: i for f, i in zip(fields, menu_selections(*fields))}
-
-    parse_genre(f, where, values)
-    parse_dates('date_produced', where, values)
-
-    keywords = f.get('keywords')
-    if keywords:
-        keywords = ''.join(m.group() for m in prune_pattern.finditer(keywords))
-        for k in it.islice((m.group() for m in parse_pattern.finditer(keywords)), 10):
-            where.append(f"title LIKE %s")  # SQL clause
-            values.append(f'%{k}%')  # for paramterizing query
-
-    count = filter_return_count(f, values)
-
-    # filter movies that are available for streaming
-    where.append('available=true')
-
-    where = f'WHERE {" AND ".join(where)}' if where else ''
-
-    with conn.cursor() as cur:
-        try:
-            cur.execute(
-                f"""
-                SELECT title FROM movie
-                {where}
-                ORDER BY title
-                {count};""",
-                values
-            )
-            print('*** CURSOR RESULTS:', list(cur))  # "<PRINT THE RESULTS>"
-        except Exception as e:
-            print('get_active_movies: error:', repr(e))
+# def get_active_movies(
+#         conn, *, fields=PRIMARY_FIELDS + ('keywords',),
+#         prune_pattern=re.compile('([A-z]|[0-9]|\s)+'),
+#         parse_pattern=re.compile('\S{1,20}') # don't understand this, so I remove '+' in '\S+{1,20}' to make it error free  --Limin
+# ):
+#     """Get a list of movies that are actively available for streaming,
+#     with options to filter by release date and genre, as well as keywords."""
+#     print('obtaining active movie list...')
+#     printc('b',
+#            '** Note **: keywords, if provided, are logically joined by AND, not OR.'
+#            ' May be provided in any order. Enter all keywords on one line,'
+#            ' space-separated. Keywords longer than 20 characters will be truncated.'
+#            ' Max 10 keywords will be processed.'
+#            ' Symbols other than plain letters, spaces, or numbers will be ignored.'
+#            )
+#     where = []
+#     values = []
+#     f = {f: i for f, i in zip(fields, menu_selections(*fields))}
+# 
+#     parse_genre(f, where, values)
+#     parse_dates('date_released', where, values)
+# 
+#     keywords = f.get('keywords')
+#     if keywords:
+#         keywords = ''.join(m.group() for m in prune_pattern.finditer(keywords))
+#         for k in it.islice((m.group() for m in parse_pattern.finditer(keywords)), 10):
+#             where.append(f"title LIKE %s")  # SQL clause
+#             values.append(f'%{k}%')  # for paramterizing query
+# 
+#     count = filter_return_count(f, values)
+# 
+#     # filter movies that are available for streaming
+#     where.append('available=true')
+# 
+#     where = f'WHERE {" AND ".join(where)}' if where else ''
+# 
+#     with conn.cursor() as cur:
+#         try:
+#             cur.execute(
+#                 f"""
+#                 SELECT title FROM movie
+#                 {where}
+#                 ORDER BY title
+#                 {count};""",
+#                 values
+#             )
+#             print('*** CURSOR RESULTS:', list(cur))  # "<PRINT THE RESULTS>"
+#         except Exception as e:
+#             print('get_active_movies: error:', repr(e))
 
 
 #     Which actors have the highest associated movie ratings?
@@ -348,7 +355,7 @@ def get_highest_rated_actors(conn, *, fields=PRIMARY_FIELDS):
     f = {f: i for f, i in zip(fields, menu_selections(*fields))}
 
     parse_genre(f, where, values)
-    parse_dates('date_produced', where, values)
+    parse_dates('M.date_released', where, values)
     count = filter_return_count(f, values)
 
     where = f'WHERE {" AND ".join(where)}' if where else ''
@@ -357,21 +364,30 @@ def get_highest_rated_actors(conn, *, fields=PRIMARY_FIELDS):
         try:
             cur.execute(
                 f"""
-				SELECT
-					first_name || ' ' || last_name AS name,
-					AVG(R.rating) avg_rating
-				FROM
-					actor A
-					JOIN act ON (act.actor_id = A.id)
-					JOIN review R ON (act.movie_id = R.movie_id)
-				{where}
-				GROUP BY name
-				ORDER BY avg_rating
-				{count};
-				""",
+                WITH average_ratings AS
+                    (SELECT movie_id, AVG(rating) avg_r
+                     FROM review
+                     GROUP BY movie_id
+                    )
+                SELECT
+                    first_name || ' ' || last_name AS name,
+                    AVG(AR.avg_r) avg_rating
+                FROM
+                    actor A
+                    JOIN act ON (act.actor_id = A.id)
+                    JOIN average_ratings AR ON (act.movie_id = AR.movie_id)
+                    JOIN movie M ON (M.id = AR.movie_id)
+                {where}
+                GROUP BY name
+                ORDER BY avg_rating DESC
+                {count};
+                """,
                 values
             )
-            print('*** CURSOR RESULTS:', list(cur))  # "<PRINT THE RESULTS>"
+            printc('b','actors in order of rating:\n- - - -')
+            for name,r in cur:
+            	print(f'    {name}: {float(r):.1f}')
+            print('- - - -')
         except Exception as e:
             print('get_highest_rated_actors: error:', repr(e))
 
@@ -385,7 +401,7 @@ def get_highest_rated_directors(conn, *, fields=PRIMARY_FIELDS):
     f = {f: i for f, i in zip(fields, menu_selections(*fields))}
 
     parse_genre(f, where, values)
-    parse_dates('date_produced', where, values)
+    parse_dates('M.date_released', where, values)
     count = filter_return_count(f, values)
 
     where = f'WHERE {" AND ".join(where)}' if where else ''
@@ -393,19 +409,24 @@ def get_highest_rated_directors(conn, *, fields=PRIMARY_FIELDS):
     with conn.cursor() as cur:
         try:
             cur.execute(
-                """
-				SELECT
-					first_name || ' ' || last_name AS name,
-					AVG(R.rating) avg_rating
-				FROM
-					director D
-					JOIN direct ON (act.director_id = D.id)
-					JOIN review R ON (direct.movie_id = R.movie_id)
-				{where}
-				GROUP BY name
-				ORDER BY avg_rating
-				{count};
-				""",
+                f"""
+                WITH average_ratings AS
+                    (SELECT movie_id, AVG(rating) avg_r
+                     FROM review
+                     GROUP BY movie_id
+                    )
+                SELECT
+                    first_name || ' ' || last_name AS name,
+                    AVG(AR.avg_r) avg_rating
+                FROM
+                    director D
+                    JOIN movie M ON (D.id = M.director_id)
+                    JOIN average_ratings AR ON (M.id = AR.movie_id)
+                {where}
+                GROUP BY name
+                ORDER BY avg_rating
+                {count};
+                """,
                 values
             )
             print('*** CURSOR RESULTS:', list(cur))  # "<PRINT THE RESULTS>"
@@ -416,7 +437,7 @@ def get_highest_rated_directors(conn, *, fields=PRIMARY_FIELDS):
 
 
 def get_popular_movies(conn, *, fields=PRIMARY_FIELDS):
-    """Get the most popular movies in a certain time frame, optionally
+    """Get the most watched movies in a certain time frame, optionally
     filtering by genre and limiting number of query results returned."""
     where = []
     values = []
@@ -448,32 +469,43 @@ def get_popular_movies(conn, *, fields=PRIMARY_FIELDS):
 
 
 #     Which users watch the most movies (of a certain genre) in a given time frame?
-def get_busiest_users(conn, *, fields=PRIMARY_FIEDS):
-    """Get the most binge-heavy movie watchers in a certain time frame, optionally
+def get_busiest_users(conn, *, fields=PRIMARY_FIELDS):
+    """Get the most busiest users in a certain time frame, optionally
     filtering by genre and limiting number of query results returned."""
     where = []
     values = []
     f = {f: i for f, i in zip(fields, menu_selections(*fields))}
 
-    parse_genre(f, where, values)
-    parse_dates('watch_time', where, values)
+    genre = parse_genre(f, where, values)
+    parse_dates('watch_date', where, values)
     count = filter_return_count(f, values)
 
     where = f'WHERE {" AND ".join(where)}' if where else ''
-
+    
+    print('where:',where)
+    print('values:',values)
+    
+    if genre:
+        _from = f'history H JOIN movie M ON (H.movie_id = M.id)'
+    else:
+    	_from = 'history'
+    
     with conn.cursor() as cur:
         try:
             cur.execute(
                 f"""
                 SELECT user_id, COUNT(*) num_watches
-                FROM history
+                FROM {_from}
                 {where}
                 GROUP BY user_id
                 ORDER BY COUNT(*) DESC
                 {count};""",
                 values
             )
-            print('*** CURSOR RESULTS:', list(cur))  # "<PRINT THE RESULTS>"
+            print('history results:')
+            extra = f" (in genre '{genre}')" if genre else ''
+            for u,c in cur:
+            	print(f'    user {u} has watched {c} movies{extra}')
         except Exception as e:
             print('get_busiest_users: error:', repr(e))
 
@@ -482,8 +514,7 @@ def get_busiest_users(conn, *, fields=PRIMARY_FIEDS):
 
 def get_highest_rated_movies(
         conn, *,
-        fields=('genre\0', '# of results to return\0',
-                'opening date\0', 'closing date\0')
+        fields=PRIMARY_FIELDS
 ):
     """Get the highest-rated movies in a certain time frame, optionally
     filtering by genre and limiting number of query results returned."""
@@ -492,7 +523,7 @@ def get_highest_rated_movies(
     f = {f: i for f, i in zip(fields, menu_selections(*fields))}
 
     parse_genre(f, where, values)
-    parse_dates('date_produced', where, values)
+    parse_dates('date_released', where, values)
     count = filter_return_count(f, values)
 
     where = f'WHERE {" AND ".join(where)}' if where else ''
@@ -505,18 +536,18 @@ def get_highest_rated_movies(
         try:
             cur.execute(
                 f"""
-				WITH average_ratings AS
-					(SELECT movie_id, AVG(rating) avg_r
-					 FROM review
-					 GROUP BY movie_id
-					)
-				
-				SELECT title, AR.avg_r AS average_rating
-				FROM movie JOIN average_ratings AR
-					ON movie.id = AR.movie_id
-				{where}
-				ORDER BY AR.avg_r DESC
-				{count};""",
+                WITH average_ratings AS
+                    (SELECT movie_id, AVG(rating) avg_r
+                     FROM review
+                     GROUP BY movie_id
+                    )
+                
+                SELECT title, AR.avg_r AS average_rating
+                FROM movie JOIN average_ratings AR
+                    ON movie.id = AR.movie_id
+                {where}
+                ORDER BY average_rating DESC
+                {count};""",
                 values
             )
             print('*** CURSOR RESULTS:', list(cur))  # "<PRINT THE RESULTS>"
@@ -533,7 +564,8 @@ def ending_subscriptions(conn, *, options=set('dwm'),
     The definition of 'soon' is specified by user input."""
 
     # month = 30 days, week = 7 days
-    window = conv[simple_select(prompt, options)]
+    d = conv[simple_select(prompt, options)]
+    window = f'{d} days'
     
     # because postgresql doesn't understand referencing a
     # column alias just created
@@ -543,20 +575,28 @@ def ending_subscriptions(conn, *, options=set('dwm'),
         try:
             cur.execute(
             f"""
-			SELECT
-				U.first_name || ' ' || U.last_name AS name,
-				{end_date} AS end_date
-			FROM
-				subscription S
-				JOIN plan P ON (S.plan_name = P.name)
-				JOIN users U ON (U.id = S.user_id)
-			WHERE
-				{end_date} - CURRENT_DATE <= {window}
-			ORDER BY {end_date} DESC;"""
+            SELECT
+                U.first_name || ' ' || U.last_name AS name,
+                ({end_date})::date AS end_date
+            FROM
+                subscription S
+                JOIN plan P ON (S.plan_name = P.name)
+                JOIN users U ON (U.id = S.user_id)
+            WHERE
+                {end_date} > CURRENT_DATE AND
+                {end_date} - CURRENT_DATE <= '{window}'
+            ORDER BY {end_date} DESC;"""
                 # direct input of `window` by formatting is okay here
                 # since the inputs are restricted by the `conv` dictionary
             )
-            print('*** CURSOR RESULTS:', list(cur))  # "<PRINT THE RESULTS>"
+            r = next(cur,None)
+            if r is None:
+            	print('no users have subscriptions ending within {pluralize{d, "day"}}')
+            else:
+            	result = it.chain((r,),cur)
+            	print(f'following users have subscriptions ending within {pluralize(d, "day")}')
+            	for name,end_date in result:
+            		print(f'    {name}:',end_date)
         except Exception as e:
             print('ending_subscriptions: error:', repr(e))
 
@@ -569,13 +609,13 @@ def generate_subscription_counts(conn):
         try:
             cur.execute(
             """
-			SELECT name, COUNT(*) count
-			FROM subscription S JOIN plan P ON (S.plan_name = P.name)
-			WHERE
-				start_date < CURRENT_DATE
-				AND start_date + month_length > CURRENT_DATE
-			GROUP BY name;
-			"""
+            SELECT name, COUNT(*) count
+            FROM subscription S JOIN plan P ON (S.plan_name = P.name)
+            WHERE
+                start_date < CURRENT_DATE
+                AND start_date + month_length > CURRENT_DATE
+            GROUP BY name;
+            """
             )
             # pretty print as table
             for plan, count in cur:
@@ -591,80 +631,96 @@ def subscription_history(conn):
     m = custom_select(
         "enter # of months of history to get (max 120):",
         get_integer
-    )
-    m = f'{m} MONTH{"" if m==1 else "S"}'
+    )[1]
 
-    with conn.get_cursor() as cur:
+    with conn.cursor() as cur:
         try:
             cur.execute(
             f"""
-			SELECT 
-				DATE_PART('year',start_date) AS year,
-				DATE_PART('month',start_date) AS month,
-				plan_name,
-				COUNT(*)
-			FROM subscription
-			WHERE CURRENT_DATE-start_date <= {m}
-			GROUP BY plan_name, year, month
-			ORDER BY year DESC, month DESC, plan_name ASC;
-			"""
+            SELECT 
+                DATE_PART('year',start_date) AS year,
+                DATE_PART('month',start_date) AS month,
+                plan_name,
+                COUNT(*)
+            FROM subscription
+            WHERE CURRENT_DATE-start_date <= (30 * %s)
+            GROUP BY plan_name, year, month
+            ORDER BY year DESC, month DESC, plan_name ASC;
+            """,
+            (m,)
             )
             # TO DO: pretty print in table
             for year, group in it.groupby(cur, lambda tup: tup[0]):
-                print(year)
+                print(int(year))
                 for _, month, name, count in group:
-                    print('   ', month, name, count)
+                    print('   ', 'month:', month, 'name:',name, 'count:',count)
         except Exception as e:
             print('subscription_history: error:', repr(e))
 
 
 def get_user_current_subscription_window(conn):
     """For a given user id, get the start and end dates of his current subscription."""
-    id = menu_selections('user id')
-	
-	end_date = 'start_date + month_length'
+    id, = menu_selections('user id')
+    
+    end_date = 'start_date + month_length'
 
     with conn.cursor() as cur:
         try:
             cur.execute(
             f"""
-			SELECT
-				start_date,
-				{end_date} AS end_date
-			FROM
-				subscription S JOIN plan P ON (S.plan_name = P.name)
-			WHERE
-				user_id = %s AND
-				start_date <= CURRENT_DATE AND
-				{end_date} >= CURRENT_DATE;
-			""",
+            SELECT
+                start_date,
+                EXTRACT(MONTH FROM month_length) AS month,
+                EXTRACT(YEAR FROM month_length) AS year,
+                ({end_date})::date AS end_date,
+                name
+            FROM
+                subscription S JOIN plan P ON (S.plan_name = P.name)
+            WHERE
+                user_id = %s AND
+                start_date <= CURRENT_DATE AND
+                {end_date} >= CURRENT_DATE;
+            """,
                 (id,)
             )
-            if next(cur, None) is None:
+            result = next(cur, None)
+            if result is None:
                 printc('b', f'No subscription found for user {id}')
+            else:
+            	s,m,y,e,n = result
+            	m,y = int(m),int(y)
+            	m = f'{m} month{"s"*(m>1)}' if int(m) else ''
+            	y = f'{y} year{"s"*(y>1)}' if int(y) else ''
+            	t = f'{y}{" "*(bool(y)*bool(m))}{m}'
+            	print(f"user {id}'s current subscription is the '{_c(n,'b')}'"
+            	      f"plan ({_c(t,'g')}), from {_c(s,'r')} - {_c(e,'r')}")
         except Exception as e:
             print('get_user_current_subscription_window: error:', repr(e))
 
 
-def get_actor_director_pairs(conn):
+def get_actor_director_pairs(conn, *, prompt = PRIMARY_FIELDS[1]):
     """Get the number of movies that each actor, director pair have collaborated
     on, in descending order, with option to limit result count."""
-
-    count = filter_return_count(f, values)
+	
+    count = input(empty_notice(prompt))
+    if count.isdigit():
+    	count = f'LIMIT {count}'
+    else:
+    	count = ''
 
     with conn.cursor() as cur:
         try:
             cur.execute(
+            f"""
+            SELECT actor_id, director_id, COUNT(*) num_movies
+            FROM
+                act A JOIN movie M ON (A.movie_id = M.id)
+            GROUP BY
+                actor_id, director_id
+            ORDER BY
+                COUNT(*) DESC, actor_id ASC, director_id ASC
+            {count};
             """
-			SELECT actor_id, director_id, COUNT(*) num_movies
-			FROM
-				act A JOIN direct D ON (A.movie_id = D.movie_id)
-			GROUP BY
-				actor_id, director_id
-			ORDER BY
-				COUNT(*) DESC, actor_id ASC, director_id ASC
-			{count};
-			"""
             )
             print('actor id, director id, # movies\n- - - -')
             for a, d, m in cur: print(f'    a={a}, d={d}, # movies = {m}')
@@ -678,31 +734,36 @@ def get_user_genres(conn):
 
     with conn.cursor() as cur:
         try:
-            cur.exeucte(
+            cur.execute(
             """
-			WITH
-				user_genre_counts as
-				(SELECT user_id, genre, COUNT(*) c
-				 FROM history H
-					JOIN movie M ON H.movie_id = M.id
-				 GROUP BY
-					user_id, genre
-				),
-		
-				user_genre_max as
-				(SELECT user_id, MAX(c) mc
-				 FROM user_genre_counts
-				 GROUP BY user_id
-				)
-			
-			SELECT user_id, genre
-			FROM user_genre_counts NATURAL JOIN user_genre_max
-			WHERE c = mc
-			ORDER BY user_id;
-			"""
+            WITH
+                user_genre_counts as
+                (SELECT user_id, genre, COUNT(*) c
+                 FROM history H
+                    JOIN movie M ON H.movie_id = M.id
+                 GROUP BY
+                    user_id, genre
+                ),
+        
+                user_genre_max as
+                (SELECT user_id, MAX(c) mc
+                 FROM user_genre_counts
+                 GROUP BY user_id
+                ),
+                
+                user_genre_res AS
+                (SELECT user_id, genre, c
+                 FROM user_genre_counts NATURAL JOIN user_genre_max
+                 WHERE c = mc
+                 ORDER BY user_id)
+            
+            SELECT user_id, string_agg(genre, ', '), MIN(c)
+            FROM user_genre_res
+            GROUP BY user_id;
+            """
             )
-            print('most common genre for each user:\n- - - -')
-            for u, g in cur: print(f'    user {u}: {g}')
+            print('most common genre for each user (with ties included):\n- - - -')
+            for u, g, c in cur: print(f'    user {u}: {g} {c}')
             print('- - - -')
         except Exception as e:
             print('get_user_genres: exception:', repr(e))
@@ -715,11 +776,10 @@ def get_highest_grossing_studios(conn):
         try:
             cur.execute(
             """
-            SELECT studio_name, SUM(gross_income) revenue
-            FROM produce JOIN movie M
-                ON (P.movie_id = M.id)
+            SELECT studio, SUM(gross_income) revenue
+            FROM movie
             GROUP BY
-                studio_name
+                studio
             ORDER BY revenue;
             """
             )
@@ -793,11 +853,11 @@ def sign_user_up_for_plan_today(conn):
             cur.execute(
             """
             SELECT *
-			FROM subscription S JOIN plan P ON (S.plan_name = P.name)
-			WHERE
-				user_id = %s AND
-				start_date <= CURRENT_DATE AND
-				start_date + month_length >= CURRENT_DATE;
+            FROM subscription S JOIN plan P ON (S.plan_name = P.name)
+            WHERE
+                user_id = %s AND
+                start_date <= CURRENT_DATE AND
+                start_date + month_length >= CURRENT_DATE;
             """,
                 (id,)
             )
@@ -834,11 +894,11 @@ def sign_user_up_for_future_plan(conn):
             cur.execute(
             """
             SELECT *
-			FROM subscription S JOIN plan P ON (S.plan_name = P.name)
-			WHERE
-				user_id = %s AND
-				start_date <= %s AND
-				start_date + month_length >= %s;
+            FROM subscription S JOIN plan P ON (S.plan_name = P.name)
+            WHERE
+                user_id = %s AND
+                start_date <= %s AND
+                start_date + month_length >= %s;
             """,
                 (id, date, date)
             )
@@ -971,7 +1031,7 @@ def add_movie(conn, *, id_parse=ACTOR_ID_PARSE, info_cap=MAX_INFO_SIZE):
             cur.execute(
             """
             INSERT INTO movies
-                (title, url, director_id, date_produced, info)
+                (title, url, director_id, date_released, info)
             VALUES (%s, %s, %s, %s, %s) RETURNING id;""",
                 (title, url, director_id, date, info)
             )
@@ -1076,7 +1136,7 @@ def track_watch_event(conn, *, fields=('user id', 'movie id')):
 _func_mapping = {
     str(i):f for i,f in enumerate(sorted
     ((
-        get_active_movies,
+#         get_active_movies,
         get_highest_rated_actors, ## redo for new schema
         get_highest_rated_directors, ## redo for new schema
         get_popular_movies,
@@ -1125,8 +1185,8 @@ if __name__ == '__main__':
         
     # create database connection
     user = input("Enter database user: ")
-    # todo: choose database between 'skynetflix_small' and 'skynetflix_big' ? 
-    database = 'skynetflix_small'
+    database = simple_select('Which database? (enter s for small, b for big)', ('s','b'))
+    database = 'skynetflix_small' if database=='s' else 'skynetflix_big'
     conn = psycopg2.connect(
         database=database,
         user=user,
@@ -1134,31 +1194,36 @@ if __name__ == '__main__':
         port=connect_port
     )
     cur = conn.cursor()
-
+    
     ################
-
-
-
-
+    
+    
+    
+    
     conn.autocommit = True  # as recommended by documentation
 
-    # create indices: movie.date_produced, ...
-
-    printc('b', '**** AVAILABLE FUNCTIONS:')
-    for i, f in sorted((int(i), f) for i, f in _func_mapping.items()):
-        printc('dg', i, f.__name__.replace('_', ' '))
+    # create indices: movie.date_released, ...
 
     while True:
+        printc('b', '**** AVAILABLE FUNCTIONS:')
+        for i, f in sorted((int(i), f) for i, f in _func_mapping.items()):
+            printc('dg', f'    {i}', f.__name__.replace('_', ' '))
+        
         try:
-            f = input('enter an integer to call a function, or \'q\' to exit')
+            f = input('enter an integer to call a function, or \'q\' to exit:\n    >>> ')
             if f == 'q':
                 break
             else:
-                _func_mapping[f](conn)
+                _f = _func_mapping.get(f)
+                if _f is not None:
+                	_f(conn)
+                else:
+                	printc('r',f'input `{f}` is not recognized')
 
         except Exception as e:
             print('top-level exception:', repr(e))
-
+    
     conn.close()
-    tunnel.stop()
+    if (platform.system()=='Windows'):
+        tunnel.stop()
     printc('b', '\n-- -- -- -- -- -- -- --\nExiting...')
