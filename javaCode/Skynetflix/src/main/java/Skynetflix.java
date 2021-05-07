@@ -47,6 +47,7 @@ public class Skynetflix {
 		  			                   "\t(19)  -ok- add director\n" +
 		  			                   "\t(20)  -ok- add studio\n" +
 		  			                   "\t(21)  -ok- get user info by id\n" +
+		  			                   "\t(22)  -ok- add actor\n" +
 		  			                   "Enter an integer or enter 'q' to exit: \n");
 
 		        String call = scan.nextLine();
@@ -126,6 +127,9 @@ public class Skynetflix {
 		        		break;
 		        	case 21:
 		        		task.get_user(conn);
+		        		break;
+		        	case 22:
+		        		task.add_actor(conn);
 		        		break;
 		        	default:
 			          System.out.println(utility.as_bold_color("[!!!]","r")+"Not a valid action: "+number);

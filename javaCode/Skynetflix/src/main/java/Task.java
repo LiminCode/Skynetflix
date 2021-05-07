@@ -315,6 +315,47 @@ public class Task {
 			      }//end finally try
 			}
 	  }
+	//--------OK
+	  public void add_actor(Connection conn){
+		  System.out.println(utility.as_bold_color("[iii]","g")+" Add actor ======>");
+		  String[] fileds = new String[]{"First Name","Last Name","Gender","age"};
+		  Utilities utility = new Utilities();
+		  String[] values = utility.menu_selections(fileds);
+		  String sql = "INSERT INTO actor  (first_name, last_name,gender, age) VALUES (?, ?, ?,?)";
+			PreparedStatement statement=null;
+			int age= parseIntwithName(values[3], "Age");
+			if (age<1) {
+				System.out.println("Not a valid age, return.");
+			}
+		    if (values[2].isEmpty()||values[2].equals("M")||values[2].equals("F")) {
+		    }else {
+		    	System.out.println("Not a valid Gender:"+values[2]);
+		    	return;
+		    }
+		    try {
+		      statement  = conn.prepareStatement(sql);
+		      statement.setString(1, values[0]);
+		      statement.setString(2, values[1]);
+		      statement.setString(3, values[2]);
+		      statement.setInt(4, age);
+		      
+		      int row_added = statement.executeUpdate();
+		      System.out.println(utility.as_color("[SUCCESS]", "g")+"  >>>> Insert successful. row added:" + row_added);
+		    }catch (SQLException sqle){
+		      System.out.println("Could not insert actor into db." + sqle);
+		    }catch (Exception  e){
+			      System.out.println("Could not insert actor into db.");
+			      e.printStackTrace();
+			}finally{
+				try{
+			         if(statement!=null)
+			        	 statement.close();
+			      }catch(SQLException e){
+			    	 System.out.println("SQL error: ");
+			    	 e.printStackTrace();
+			      }//end finally try
+			}
+	  }
 	  public boolean check_director_exsist(Connection conn, int id){
 
 		  String sql = "Select first_name, last_name, age from director where id = ?;";

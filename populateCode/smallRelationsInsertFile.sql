@@ -151,4 +151,13 @@ INSERT INTO "history" ("user_id", "movie_id", "watch_date", "is_finished") VALUE
 INSERT INTO "history" ("user_id", "movie_id", "watch_date", "is_finished") VALUES ('3', '7', '2021-06-05', '0');
 INSERT INTO "history" ("user_id", "movie_id", "watch_date", "is_finished") VALUES ('5', '7', '2021-06-06', '1');
 INSERT INTO "history" ("user_id", "movie_id", "watch_date", "is_finished") VALUES ('6', '7', '2021-06-05', '1');
+
+
+-- set the start value of id, else the start will be 1, thus repeat occurred.
+select setval('users_id_seq',(SELECT MAX(id) FROM users)+1,false);
+select setval('movie_id_seq',(SELECT MAX(id) FROM movie)+1,false);
+select setval('actor_id_seq',(SELECT MAX(id) FROM actor)+1,false);
+select setval('director_id_seq',(SELECT MAX(id) FROM director)+1,false);
+
+ 
  
