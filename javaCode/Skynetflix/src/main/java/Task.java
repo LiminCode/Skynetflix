@@ -19,32 +19,32 @@ public class Task {
 	  */
 	  public void add_movie(Connection conn){
 		  System.out.println(utility.as_bold_color("[iii]","g")+" Add New Movie ==>");
-		  String[] fileds = new String[]{"Title","URL","genre","Released date (YYYY-MM-DD)", "budget", "Summary", "Studio", "Director ID"};
+		  String[] fileds = new String[]{"Title","URL","genre","Released date (YYYY-MM-DD)", "Rating(R/PG/..)", "budget", "Summary", "Studio", "Director ID"};
 		  Utilities utility = new Utilities();
 		  String[] values = utility.menu_selections(fileds);
 		  // check if Director and Studio exists
 		  int director_id =0;
-		  if (values[7].isBlank()==false){
-			  director_id = Integer.parseInt(values[7]);
+		  if (values[8].isBlank()==false){
+			  director_id = Integer.parseInt(values[8]);
 		  }
 		  
 		  if (this.check_director_exsist(conn, director_id)==false) {
 			  System.out.println(utility.as_bold_color("[!!!]","r")+" Director ID doesn't exsit, you might add director first.");
 			  return;
 		  }
-		  if (values[6].isBlank()==false) {
+		  if (values[7].isBlank()==false) {
 
-			  if (this.check_studio_exsist(conn, values[6])==false) {
+			  if (this.check_studio_exsist(conn, values[7])==false) {
 				  System.out.println(utility.as_bold_color("[!!!]","r")+" Studio doesn't exsit. you might add director first.");
 				  return;
 			  }
 		  }
 			double budget=0;
-			if (values[4].isBlank()==false) {
+			if (values[5].isBlank()==false) {
 				try {
-					budget =Double.parseDouble(values[4]);
+					budget =Double.parseDouble(values[5]);
 				}catch (Exception  e){
-				      System.out.println("Not a valid budget: "+values[4]);
+				      System.out.println("Not a valid budget: "+values[5]);
 				      return;
 				}
 			}
@@ -56,7 +56,7 @@ public class Task {
 				System.out.println(utility.as_bold_color("[!!!]","r")+"Not a valid date: "+values[3]);
 			      return;
 			}
-			String sql = "INSERT INTO movie  (title, url, genre,date_released, budget, summary, studio, director_id) VALUES (?, ?, ?, ?,?,?,?,?)";
+			String sql = "INSERT INTO movie  (title, url, genre,date_released, rating, budget, summary, studio, director_id) VALUES (?, ?, ?, ?,?,?,?,?,?)";
 			PreparedStatement statement=null;
 		    try {
 		      statement  = conn.prepareStatement(sql);
@@ -65,10 +65,11 @@ public class Task {
 		      statement.setString(2, values[1]); // url
 		      statement.setString(3, values[2]); // genre
 		      statement.setDate(4, movie_date); // released date
-		      statement.setDouble(5, budget); // budget
-		      statement.setString(6, values[5]); // summary
-		      statement.setString(7, values[6]); // studio
-		      statement.setInt(8, director_id); // director_id
+		      statement.setString(5, values[4]); // rating
+		      statement.setDouble(6, budget); // budget
+		      statement.setString(7, values[6]); // summary
+		      statement.setString(8, values[7]); // studio
+		      statement.setInt(9, director_id); // director_id
 		      
 		      int row_added = statement.executeUpdate();
 		      System.out.println(utility.as_color("[SUCCESS]", "g")+"  >>>> Insert successful. row added:" + row_added);
