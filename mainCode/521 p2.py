@@ -295,60 +295,6 @@ def pluralize(n, kind):
 # # # # # # # # # # # # # # # # Queries # # # # # # # # # # # # # # # #
 
 
-# def get_active_movies(
-#         conn, *, fields=PRIMARY_FIELDS + ('keywords',),
-#         prune_pattern=re.compile('([A-z]|[0-9]|\s)+'),
-#         parse_pattern=re.compile('\S{1,20}') # don't understand this, so I remove '+' in '\S+{1,20}' to make it error free  --Limin
-# ):
-#     """Get a list of movies that are actively available for streaming,
-#     with options to filter by release date and genre, as well as keywords."""
-#     print('obtaining active movie list...')
-#     printc('b',
-#            '** Note **: keywords, if provided, are logically joined by AND, not OR.'
-#            ' May be provided in any order. Enter all keywords on one line,'
-#            ' space-separated. Keywords longer than 20 characters will be truncated.'
-#            ' Max 10 keywords will be processed.'
-#            ' Symbols other than plain letters, spaces, or numbers will be ignored.'
-#            )
-#     where = []
-#     values = []
-#     f = {f: i for f, i in zip(fields, menu_selections(*fields))}
-# 
-#     parse_genre(f, where, values)
-#     parse_dates('date_released', where, values)
-# 
-#     keywords = f.get('keywords')
-#     if keywords:
-#         keywords = ''.join(m.group() for m in prune_pattern.finditer(keywords))
-#         for k in it.islice((m.group() for m in parse_pattern.finditer(keywords)), 10):
-#             where.append(f"title LIKE %s")  # SQL clause
-#             values.append(f'%{k}%')  # for paramterizing query
-# 
-#     count = filter_return_count(f, values)
-# 
-#     # filter movies that are available for streaming
-#     where.append('available=true')
-# 
-#     where = f'WHERE {" AND ".join(where)}' if where else ''
-# 
-#     with conn.cursor() as cur:
-#         try:
-#             cur.execute(
-#                 f"""
-#                 SELECT title FROM movie
-#                 {where}
-#                 ORDER BY title
-#                 {count};""",
-#                 values
-#             )
-#             print('*** CURSOR RESULTS:', list(cur))  # "<PRINT THE RESULTS>"
-#         except Exception as e:
-#             print('get_active_movies: error:', repr(e))
-
-
-#     Which actors have the highest associated movie ratings?
-#         * Calculate an actor's rating as the average rating across all the movies he starred in
-
 def get_highest_rated_actors(conn, *, fields=PRIMARY_FIELDS):
     where = []
     values = []
@@ -391,9 +337,9 @@ def get_highest_rated_actors(conn, *, fields=PRIMARY_FIELDS):
         except Exception as e:
             print('get_highest_rated_actors: error:', repr(e))
 
+
 #     Which directors have the highest associated movie ratings?
 #         + Calculate a director's rating as the average rating across all the movies he directed
-
 
 def get_highest_rated_directors(conn, *, fields=PRIMARY_FIELDS):
     where = []
@@ -528,10 +474,6 @@ def get_highest_rated_movies(
 
     where = f'WHERE {" AND ".join(where)}' if where else ''
 
-#     f"""
-#     SELECT COALESCE(AVG(rating),0) R
-#     FROM <review table>
-#     """
     with conn.cursor() as cur:
         try:
             cur.execute(
@@ -554,8 +496,8 @@ def get_highest_rated_movies(
         except Exception as e:
             print('get_highest_rated_movies: error:', repr(e))
 
-#     Get all users whose subscriptions are ending within a short time frame (week or month) from the current date
 
+#     Get all users whose subscriptions are ending within a short time frame (week or month) from the current date
 
 def ending_subscriptions(conn, *, options=set('dwm'),
                          conv=dict(d=1, w=7, m=30),
@@ -689,8 +631,8 @@ def get_user_current_subscription_window(conn):
             else:
             	s,m,y,e,n = result
             	m,y = int(m),int(y)
-            	m = f'{m} month{"s"*(m>1)}' if int(m) else ''
-            	y = f'{y} year{"s"*(y>1)}' if int(y) else ''
+            	m = pluralize(m, 'month')
+            	y = pluralize(y, 'year')
             	t = f'{y}{" "*(bool(y)*bool(m))}{m}'
             	print(f"user {id}'s current subscription is the '{_c(n,'b')}'"
             	      f"plan ({_c(t,'g')}), from {_c(s,'r')} - {_c(e,'r')}")
@@ -1137,8 +1079,8 @@ _func_mapping = {
     str(i):f for i,f in enumerate(sorted
     ((
 #         get_active_movies,
-        get_highest_rated_actors, ## redo for new schema
-        get_highest_rated_directors, ## redo for new schema
+        get_highest_rated_actors,
+        get_highest_rated_directors,
         get_popular_movies,
         get_busiest_users,
         get_highest_rated_movies,
