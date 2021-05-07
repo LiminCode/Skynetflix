@@ -31,7 +31,9 @@ public class Utilities {
 		while(true){
 			for(int i=0;i<fields.length;i++) {
 				System.out.print("Enter "+fields[i]+": ");
-				res[i] = this.capitalize(scan.nextLine());
+				String get = scan.nextLine();
+				res[i] = get; //blank
+			 			
 			}
 			System.out.println("YOU ENTERED: ");
 			for(int i=0;i<fields.length;i++) {
@@ -39,6 +41,7 @@ public class Utilities {
 			}
 			System.out.print("IS THIS CORRECT? (type 'y' without quotes to acknowledge): ");
 			confirm = scan.nextLine();
+
 			if(!confirm.isBlank()&& confirm.toLowerCase().charAt(0)=='y'){
 				break;
 			}
