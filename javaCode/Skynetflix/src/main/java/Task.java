@@ -1,6 +1,9 @@
 import java.sql.*;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Scanner;
 
 public class Task {
 	  Utilities utility = new Utilities();  // for print in color
@@ -118,6 +121,133 @@ public class Task {
 			      }//end finally try
 			}
 	  }
+	  public List<Object> check_user_exists(Connection conn, int id) {
+		  String sql = "Select * from users where id = ?;";
+			PreparedStatement statement=null;
+			ResultSet res=null;
+		    List<Object> list = new ArrayList<Object>();
+			try {
+		      statement  = conn.prepareStatement(sql);
+		       statement.setInt(1, id);
+		       String[] arr;
+		       res = statement.executeQuery();
+		       if (res.next()) {
+		    	   list.add(res.getInt(1)); //id
+		    	   list.add(res.getString(2)); //first name
+		    	   list.add(res.getString(3)); //last name
+		    	   list.add(res.getString(4)); //email
+		    	   list.add(res.getString(5)); //phone number
+		    	   list.add(res.getString(6)); //phone number
+		    	   System.out.println(utility.as_color("[iii]", "g")+"  >>>> User "+ id+" exsist: " + res.getString(2) +res.getString(3));
+		       }else {
+		    	   System.out.println(utility.as_color("[iii]", "g")+"  >>>> User "+ id+" not exsist.");
+				    
+		       }
+		       return list;
+		      }catch (SQLException sqle){
+		      System.out.println("Could not query user." + sqle);
+		    }catch (Exception  e){
+			      System.out.println("Could not query user.");
+			      e.printStackTrace();
+			}finally{
+				try{
+			         if(statement!=null)
+			        	 statement.close();
+			      }catch(SQLException e){
+			    	 System.out.println("SQL error: ");
+			    	 e.printStackTrace();
+			      }//end finally try
+			}
+			  System.out.println(utility.as_bold_color("[iii]","g")+" Check User ======> Finished");
+			return list;
+	  }
+	  
+	  public List<Object> check_movie_exists(Connection conn, int id) {
+		  String sql = "Select * from movie where id = ?;";
+			PreparedStatement statement=null;
+			ResultSet res=null;
+		    List<Object> list = new ArrayList<Object>();
+			try {
+		      statement  = conn.prepareStatement(sql);
+		       statement.setInt(1, id);
+		       res = statement.executeQuery();
+		       if (res.next()) {
+		    	   list.add(res.getInt(1)); //id
+		    	   list.add(res.getString(2)); //title
+		    	   list.add(res.getString(3)); //url
+		    	   list.add(res.getString(4)); //genre
+		    	   list.add(res.getString(5)); //date_released
+		    	   list.add(res.getString(6)); //rating
+		    	   list.add(res.getDouble(7)); //budget
+		    	   list.add(res.getDouble(8)); //gross income
+		    	   list.add(res.getString(9)); //summary
+		    	   list.add(res.getString(10)); //studio
+		    	   list.add(res.getInt(11)); //director id
+		    	   
+		    	   
+		    	   System.out.println(utility.as_color("[iii]", "g")+"  >>>> Movie "+ id+" exsist: " + res.getString(2)  );
+		       }else {
+		    	   System.out.println(utility.as_color("[iii]", "g")+"  >>>> Movie "+ id+" not exsist.");
+				    
+		       }
+		       return list;
+		      }catch (SQLException sqle){
+		      System.out.println("Could not query movie." + sqle);
+		    }catch (Exception  e){
+			      System.out.println("Could not query movie.");
+			      e.printStackTrace();
+			}finally{
+				try{
+			         if(statement!=null)
+			        	 statement.close();
+			      }catch(SQLException e){
+			    	 System.out.println("SQL error: ");
+			    	 e.printStackTrace();
+			      }//end finally try
+			}
+			  System.out.println(utility.as_bold_color("[iii]","g")+" Check Movie ======> Finished");
+			return list;
+	  }
+	  public List<Object> check_review_exists(Connection conn, int user_id,int movie_id) {
+		  String sql = "Select * from review where user_id = ? and movie_id = ?;";
+			PreparedStatement statement=null;
+			ResultSet res=null;
+		    List<Object> list = new ArrayList<Object>();
+			try {
+		      statement  = conn.prepareStatement(sql);
+		       statement.setInt(1, user_id);
+		       statement.setInt(2, movie_id);
+		       res = statement.executeQuery();
+		       if (res.next()) {
+		    	   list.add(res.getInt(1)); //user_id
+		    	   list.add(res.getInt(2)); //movie_id
+		    	   list.add(res.getString(3)); //review date
+		    	   list.add(res.getDouble(4)); //rating
+		    	   list.add(res.getString(5)); //content 
+		    	   System.out.println(utility.as_color("[iii]", "g")+"  >>>> Review from user "+ user_id+"about movie"+ movie_id+" exsist: " + res.getString(3) );
+		       }else {
+		    	   System.out.println(utility.as_color("[iii]", "g")+"  >>>> Review from user "+ user_id+"about movie"+ movie_id+"not exsist.");
+   				    
+		       }
+		       return list;
+		      }catch (SQLException sqle){
+		      System.out.println("Could not query review." + sqle);
+		    }catch (Exception  e){
+			      System.out.println("Could not query review.");
+			      e.printStackTrace();
+			}finally{
+				try{
+			         if(statement!=null)
+			        	 statement.close();
+			      }catch(SQLException e){
+			    	 System.out.println("SQL error: ");
+			    	 e.printStackTrace();
+			      }//end finally try
+			}
+			  System.out.println(utility.as_bold_color("[iii]","g")+" Check review ======> Finished");
+			return list;
+	  }
+	  
 	  //--------OK
 	  public void add_director(Connection conn){
 		  System.out.println(utility.as_bold_color("[iii]","g")+" Add Director ======>");
@@ -367,7 +497,101 @@ public class Task {
     If the user has already reviewed this movie, prompt the user
     to confirm that he wants to overwrite his previous review.
 	   * */
-	  public void leave_a_review(Connection conn){}
+	  public void leave_a_review(Connection conn){
+		  System.out.println(utility.as_bold_color("[iii]","g")+" Leave a Review ======>");
+		  String[] fileds = new String[]{"User ID","Movie ID","Review Date(YYYY-MM-DD)","Rating(1-100)","Content"};
+		  Utilities utility = new Utilities();
+		  String[] values = utility.menu_selections(fileds);
+		  
+		  // check user
+		  int user_id =  parseIntwithName(values[0],"User ID");
+		  if (user_id==-1) {return;}
+		  List<Object> user_info = check_user_exists(conn, user_id);
+		  if (user_info.isEmpty()) {
+			  System.out.println(utility.as_color("[!!!]", "r")+">>> User ID not exsist.");
+			  return;
+		  }
+		  
+		  // check movie
+		  int movie_id =  parseIntwithName(values[1],"Movie ID");
+		  if (movie_id==-1) {return;}
+		  List<Object> movie_info = check_movie_exists(conn, movie_id);
+		  if (movie_info.isEmpty()) {
+			  System.out.println(utility.as_color("[!!!]", "r")+">>> Movie ID not exsist.");
+			  return;
+		  }
+		  
+		  // get date
+			java.sql.Date review_date;
+			try {
+				review_date = dateUtil.strToDate(values[2]);
+			}catch(Exception  e) {
+				System.out.println(utility.as_bold_color("[!!!]","r")+"Not a valid date: "+values[3]);
+			      return;
+			}
+		  	  
+		  //parse Rating
+		  int rating =  parseIntwithName(values[3],"Rating");
+		  if (rating <= 0) {return;}
+		  // check exsist
+		  List<Object> review_info = check_review_exists(conn,user_id, movie_id);
+		  if (!review_info.isEmpty()) {
+			  System.out.println(utility.as_color("[!!!]", "r")+">>> Do you want to overwrite the previous review? (Y/N)");
+			  Scanner scan = new Scanner(System.in);
+			  String get = scan.nextLine();
+			 
+			  if(get.equals("Y")) {
+				  System.out.println(utility.as_color("[!!!]", "r")+">>>Overwrite..."); 
+				  // here call overWrite
+				   
+			  }else {
+				  System.out.println(utility.as_color("[!!!]", "r")+">>>Not Overwrite, Quit...");
+				  return;
+			  }
+
+		  }
+
+		  String insert_sql = "INSERT INTO review  (user_id,movie_id, review_date, rating,content) VALUES (?, ?, ?,?,?);";
+		  String update_sql = "UPDATE review SET review_date=?, rating=?, content=? WHERE user_id = ? AND movie_id = ? ;";
+		   PreparedStatement statement=null;
+		    try {
+				  //insert
+				  if (review_info.isEmpty()) {
+					  statement  = conn.prepareStatement(insert_sql);
+				      statement.setInt(1, user_id);
+				      statement.setInt(2, movie_id);
+				      statement.setDate(3, review_date);
+				      statement.setInt(4, rating);
+				      statement.setString(5, values[4]);
+				      int row_added = statement.executeUpdate();
+				      System.out.println(utility.as_color("[SUCCESS]", "g")+"  >>>> Insert review successful. row added:" + row_added);
+				  }else { //update
+					  statement  = conn.prepareStatement(update_sql);
+
+				      statement.setDate(1, review_date);
+				      statement.setInt(2, rating);
+				      statement.setString(3, values[4]);
+				      statement.setInt(4, user_id);
+				      statement.setInt(5, movie_id);
+				      int row_added = statement.executeUpdate();
+				      System.out.println(utility.as_color("[SUCCESS]", "g")+"  >>>> Update review successful. row added:" + row_added);
+				  }
+		      
+		    }catch (SQLException sqle){
+		      System.out.println("Could not insert review into db." + sqle);
+		    }catch (Exception  e){
+			      System.out.println("Could not insert review into db.");
+			      e.printStackTrace();
+			}finally{
+				try{
+			         if(statement!=null)
+			        	 statement.close();
+			      }catch(SQLException e){
+			    	 System.out.println("SQL error: ");
+			    	 e.printStackTrace();
+			      }//end finally try
+			}
+	  }
 	  
 	  /*
 	   * Set a movie's active status to true, meaning it is actively streaming.
@@ -376,5 +600,16 @@ public class Task {
 	   * */
 	  public void relist_movie(Connection conn){}
 	  public void remove_user(Connection conn){}
-	 
+	  
+	  
+	  public int parseIntwithName(String str, String name) {
+		  int re=0;
+			try {
+				re =Integer.parseInt(str);
+			}catch (Exception  e){
+			      System.out.println("Not a valid "+name+ ": "+str);
+			      return -1;
+			}
+			return re;
+	  }
 }

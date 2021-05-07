@@ -26,12 +26,12 @@ public class Skynetflix {
 		        System.out.println("\033[32;4m" + "=".repeat(50) + "\033[0m"+
 		        						"\nWhat would you like to do?\n" +
 		  			                   "\t(0) Add actors to movie\n" +
-		  			                   "\t(1) -- add movie\n" +
-		  			                   "\t(2) add user\n" +
+		  			                   "\t(1) -ok- add movie\n" +
+		  			                   "\t(2) -ok- add user\n" +
 		  			                   "\t(3) delist movie\n" +
 		  			                   "\t(4) ending subscriptions\n" +
 		  			                   "\t(5) generate subscription counts\n" +
-		  			                   "\t(6) -- get movies\n" +
+		  			                   "\t(6) -ok- get movies\n" +
 		  			                   "\t(7) get actor director pairs\n" +
 		  			                   "\t(8) get busiest users\n" +
 		  			                   "\t(9) get highest grossing studios\n" +
@@ -41,14 +41,14 @@ public class Skynetflix {
 		  			                   "\t(13) get popular movies\n" +
 		  			                   "\t(14) get user current subscription window\n" +
 		  			                   "\t(15) get user genres\n" +
-		  			                   "\t(16) leave a review\n" +
+		  			                   "\t(16) -ok- leave a review\n" +
 		  			                   "\t(17) relist movie\n" +
 		  			                   "\t(18) remove user\n" +
-		  			                   "\t(19)  -- add director\n" +
-		  			                   "\t(20)  -- add studio\n" +
+		  			                   "\t(19)  -ok- add director\n" +
+		  			                   "\t(20)  -ok- add studio\n" +
 		  			                   "Enter an integer or enter 'q' to exit: \n");
 
-		        String call = scan.next();
+		        String call = scan.nextLine();
 		        // string -> integer
 		        int number= -1;
 		        try {
