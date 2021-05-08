@@ -16,8 +16,8 @@ public class Task {
 		System.out.println(utility.as_bold_color("[iii]", "g") + " Add Actors to Movie ==>");
 		System.out.println("** Note ** : To enter actors, provide each actor's id #, space-separated."
 				+ " If the actor is a main actor, enter the actor id with a * at "
-				+ "its end (without space), e.g. 12345*.");
-		String[] fileds = new String[] { "Movie ID", "Actors" };
+				+ "its end (without space), e.g. 12345*. To enter Roles, separate each actor's role by '#', leave space but also followed a '#' if the role is unknown. ");
+		String[] fileds = new String[] { "Movie ID", "Actors","Roles" };
 		Utilities utility = new Utilities();
 		String[] values = utility.menu_selections(fileds);
 		int movie_id = parseIntwithName(values[0], "Movie ID");
@@ -25,20 +25,20 @@ public class Task {
 			return;
 		}
 		String[] actor_ids = values[1].split("\\s+");
+		String[] actor_roles = values[2].split("#");
 		System.out.println("actor_ids:" + actor_ids.hashCode());
 
-		String sql = "INSERT INTO act  (actor_id, movie_id, if_main ) VALUES (?, ?, ?)";
+		String sql = "INSERT INTO act  (actor_id, movie_id, if_main, role ) VALUES (?, ?, ?,?)";
 		PreparedStatement statement = null;
 		int count = 0;
 		try {
 			conn.setAutoCommit(false); // close auto commit
 			for (int i = 0; i < actor_ids.length; i++) {
-				boolean if_main = false;
+				String if_main = "0";
 				if (actor_ids[i].contains("*")) {
-					if_main = true;
-					actor_ids[i].replace("*", "");
+					if_main = "1";
 				}
-				int actor_id = parseIntwithName(actor_ids[i], "Actor ID");
+				int actor_id = parseIntwithName(actor_ids[i].replace("*", ""), "Actor ID");
 				if (actor_id == -1) {
 					throw new Exception("Actor ID parse fail.");
 				}
@@ -46,7 +46,8 @@ public class Task {
 				statement.clearParameters();
 				statement.setInt(1, actor_id); // movie id
 				statement.setInt(2, movie_id); // movie id
-				statement.setBoolean(3, if_main);
+				statement.setString(3, if_main); // if main
+				statement.setString(4, actor_roles[i]); // role
 				statement.executeUpdate();
 				count++;
 			}
