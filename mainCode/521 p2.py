@@ -988,31 +988,29 @@ def add_actors_to_movie(conn, *, id_parse=ACTOR_ID_PARSE):
            'at its end (without space), e.g. 12345*.'
            )
     movie_id, actors = menu_selections('movie id', 'actor ids')
-
+    actors, main_values = zip(*(a.groups() for a in id_parse.finditer(actors)))
+    main_values = tuple(map(bool, main_values))
+    
+    printc('b','provide roles for each actor specified (max 50 chars per role):')
+    roles = (input(f'    role for actor {a}:  ') for a in actors)
+    
+    act_insert_list = [(a, movie_id, r, b) for a,r,b zip(actors, roles, main_values)]
+    del actors, main_values, roles
+    
     conn.autocommit = False
     with conn.cursor() as cur:
         # IMPORTANT -- make this a transaction that succeeds only if all insertions successful
         try:
-            for actor_id in id_parse.finditer(actors):
-                actor_id, is_main = actor_id.groups()
-                if is_main:
-                    cur.execute(
-                    """
-                    INSERT INTO act
-                        (actor_id, movie_id, if_main)
-                    VALUES (%s, %s, %s);""",
-                        (actor_id, movie_id, 'true')
-                    )
-                else:
-                    cur.execute(
-                    """
-                    INSERT INTO act
-                        (actor_id, movie_id)
-                    VALUES (%s, %s);""",
-                        (actor_id, movie_id)
-                    )
-            # COMMIT changes
+			execute_batch(cur,
+			"""
+			INSERT INTO act
+				(actor_id, movie_id, role, if_main)
+			VALUES (%s, %s, %s, %s);""",
+			act_insert_list
+            )
+			
             conn.commit()
+            printc('g', f'successully added {len(act_insert_list)} actors to movie {movie_id}')
         except Exception as e:
             print('add_actors_to_movie: error:', repr(e))
             conn.rollback()
