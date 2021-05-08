@@ -992,7 +992,7 @@ def add_actors_to_movie(conn, *, id_parse=ACTOR_ID_PARSE):
     main_values = tuple(map(bool, main_values))
     
     printc('b','provide roles for each actor specified (max 50 chars per role):')
-    roles = (input(f'    role for actor {a}:  '))
+    roles = (input(f'    role for actor {a}:  ') for a in actors)
     
     act_insert_list = [(a, movie_id, r, b) for a,r,b zip(actors, roles, main_values)]
     del actors, main_values, roles
