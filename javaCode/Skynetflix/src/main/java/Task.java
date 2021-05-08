@@ -713,6 +713,51 @@ public class Task {
 	 */
 	public void get_actor_director_pairs(Connection conn) {
 		System.out.println(utility.as_bold_color("[iii]", "g") + " Count Actor Director Pairs ==>");
+		String[] fileds = new String[] { "Result Limit(leave empty if no)"};
+		Utilities utility = new Utilities();
+		String[] values = utility.menu_selections(fileds);
+		int limit= parseIntwithName(values[0], "Result Limit");
+		
+		PreparedStatement stmt = null;
+		ResultSet res = null;
+		String sql = "SELECT actor_id, director_id, COUNT(*) num_movies "
+				+ "FROM  act A JOIN movie M ON (A.movie_id = M.id)  "
+				+ "GROUP BY  actor_id, director_id ORDER BY     "
+				+ " COUNT(*) DESC, actor_id ASC, director_id ASC" ;
+		if (limit != -1) {
+			sql+="   LIMIT ?;";
+		}
+		try {
+			stmt = conn.prepareStatement(sql);
+			
+			if (limit != -1) {
+				
+				stmt.setInt(1, limit);
+			}
+			res = stmt.executeQuery();
+			System.out.println("Actor ID\t Director ID\t Movies");
+			while (res.next()) {
+				System.out.println(res.getInt(1) + " \t\t " + res.getInt(2)+ " \t\t " + res.getInt(3));
+			}
+		} catch (SQLException e) {
+			System.out.println("Query Actor Director Pairs failed,SQL error: ");
+			e.printStackTrace();
+		} catch (Exception e) {
+			System.out.println("Query Actor Director Pairs failed, class error: ");
+			e.printStackTrace();
+		} finally {
+			try {
+				if (stmt != null)
+					stmt.close();
+				if (res != null)
+					res.close();
+			} catch (SQLException e) {
+				System.out.println("Query Actor Director Pairs failed,SQL error: ");
+				e.printStackTrace();
+			} // end finally try
+		}
+		System.out.println(utility.as_bold_color("[iii]", "g") + " Query Actor Director Pairs finished.");
+		
 	}
 
 	/*
