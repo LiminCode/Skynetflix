@@ -32,7 +32,7 @@ public class Skynetflix {
 					+ "\t(4) -ok- ending subscriptions\n" 
 					+ "\t(5) -ok- generate subscription counts\n"
 					+ "\t(6) -ok- get movies\n" 
-					+ "\t(7) get actor director pairs\n" 
+					+ "\t(7) -ok- get actor director pairs\n" 
 					+ "\t(8) get busiest users\n"
 					+ "\t(9) get highest grossing studios\n" 
 					+ "\t(10) get highest rated actors\n"
