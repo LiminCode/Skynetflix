@@ -1,4 +1,5 @@
 import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.util.*;
 
 public class Utilities {
@@ -73,5 +74,11 @@ public class Utilities {
 		String apitalized = s1 + str.substring(1);
 		return apitalized;
 	}
+	 public  String big(double d) {
+	        NumberFormat nf = NumberFormat.getInstance();
+	        nf.setGroupingUsed(true);
+	        return nf.format(d);
+	    }
+
 
 }

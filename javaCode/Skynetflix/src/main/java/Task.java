@@ -769,6 +769,45 @@ public class Task {
 	}
 
 	public void get_highest_grossing_studios(Connection conn) {
+		System.out.println(utility.as_bold_color("[iii]", "g") + " Get Highest Grossing Studios ==>");
+		 
+	 
+		Utilities utility = new Utilities();
+		PreparedStatement stmt = null;
+		ResultSet res = null;
+		String sql = "SELECT studio, SUM(gross_income) revenue "
+				+ "            FROM movie "
+				+ "            GROUP BY "
+				+ "                studio "
+				+ "            ORDER BY revenue;" ;
+	 
+		try {
+			stmt = conn.prepareStatement(sql);
+			res = stmt.executeQuery();
+			System.out.println("Studio\t\t Gross Income");
+			while (res.next()) {
+				String num = utility.big(res.getDouble(2));
+				System.out.println(res.getString(1) + " \t\t " +num);
+			}
+		} catch (SQLException e) {
+			System.out.println("Query Highest Grossing Studios failed,SQL error: ");
+			e.printStackTrace();
+		} catch (Exception e) {
+			System.out.println("Query Highest Grossing Studios  failed, class error: ");
+			e.printStackTrace();
+		} finally {
+			try {
+				if (stmt != null)
+					stmt.close();
+				if (res != null)
+					res.close();
+			} catch (SQLException e) {
+				System.out.println("Query Highest Grossing Studios  failed,SQL error: ");
+				e.printStackTrace();
+			} // end finally try
+		}
+		System.out.println(utility.as_bold_color("[iii]", "g") + " Query Highest Grossing Studios  finished.");
+		
 	}
 
 	/*

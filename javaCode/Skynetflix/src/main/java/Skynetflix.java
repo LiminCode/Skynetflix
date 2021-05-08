@@ -34,7 +34,7 @@ public class Skynetflix {
 					+ "\t(6) -ok- get movies\n" 
 					+ "\t(7) -ok- get actor director pairs\n" 
 					+ "\t(8) get busiest users\n"
-					+ "\t(9) get highest grossing studios\n" 
+					+ "\t(9) -ok- get highest grossing studios\n" 
 					+ "\t(10) get highest rated actors\n"
 					+ "\t(11) get highest rated directors\n" 
 					+ "\t(12) get highest rated movies\n"
