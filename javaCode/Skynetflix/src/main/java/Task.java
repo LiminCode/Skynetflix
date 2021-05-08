@@ -552,12 +552,7 @@ public class Task {
 		}
 	}
 
-	/*
-	 * "Set a movie's active status to false, meaning it is not actively streaming.
-	 * Keep historical records of the movie being watched.
-	 */
-	public void delist_movie(Connection conn) {
-	}
+ 
 
 	/*
 	 * Get all users whose subscriptions are ending within a short time frame (week
@@ -565,6 +560,75 @@ public class Task {
 	 * are ending soon. The definition of 'soon' is specified by user input.
 	 */
 	public void ending_subscriptions(Connection conn) {
+		System.out.println(utility.as_bold_color("[iii]", "g") + " Ending Subscriptions ==>");
+		String[] fileds = new String[] { "enter window here ('d'=day, 'w'=week, or 'm'=month):"  };
+		
+		Utilities utility = new Utilities();
+		String[] values = utility.menu_selections(fileds);
+		String window = values[0];
+		while (!(window.equals("d")||window.equals("w")||window.equals("m"))) {
+			System.out.println("Input "+window+" is invalid: select from {'w', 'd', 'm'} ");
+			values = utility.menu_selections(fileds);
+			window = values[0];
+		}
+		//
+		
+
+		PreparedStatement stmt = null;
+		ResultSet res = null;
+		String sql = " SELECT  "
+				+ "U.first_name || ' ' || U.last_name AS name,  "
+				+ " (start_date + month_length)::date AS end_date "
+				+ "FROM  subscription S   "
+				+ "JOIN plan P ON (S.plan_name = P.name)   "
+				+ "JOIN users U ON (U.id = S.user_id) "
+				+ " WHERE  start_date + month_length > CURRENT_DATE "
+				+ "AND  start_date + month_length - CURRENT_DATE <= ?  "
+				+ " ORDER BY start_date + month_length DESC;";
+		if(window=="d") {
+			window = "1 days";
+			sql = sql.replace("?", "'1 days'");
+		}else if (window=="w") {
+			window = "7 days";
+			sql = sql.replace("?", "'7 days'");
+		}else {
+			window = "30 days";
+			sql = sql.replace("?", "'30 days'");
+		}
+		PreparedStatement statement = null;
+		try {
+			statement = conn.prepareStatement(sql);
+			 
+			res = statement.executeQuery();
+			System.out.println("following users have subscriptions ending within "+window);
+			int count=0;
+			while (res.next()) {
+				String name = res.getString(1);
+				String end_date = res.getString(2);
+				System.out.println(name+ " : " + end_date);
+				count++;
+			}
+			if(count==0) {
+				System.out.println("No users have subscriptions ending within "+window);
+			}
+		} catch (SQLException e) {
+			System.out.println("Query Ending Subscription failed,SQL error: ");
+			e.printStackTrace();
+		} catch (Exception e) {
+			System.out.println("Query Ending Subscription failed, class error: ");
+			e.printStackTrace();
+		} finally {
+			try {
+				if (stmt != null)
+					stmt.close();
+				if (res != null)
+					res.close();
+			} catch (SQLException e) {
+				System.out.println("Query Ending Subscription failed,SQL error: ");
+				e.printStackTrace();
+			} // end finally try
+		}
+		System.out.println(utility.as_bold_color("[iii]", "g") + " Query Ending Subscription finished.");
 	}
 
 	/*
