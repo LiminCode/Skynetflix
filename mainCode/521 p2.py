@@ -177,11 +177,11 @@ def get_date(date_string, allow_empty=True, pattern = re.compile('\d+')):
     r = [m.group() for m in pattern.finditer(date_string)]
     print('r:',r)
     if (not (0 < len(r) < 4)) or len(r[0])!=4:
-    	print('malformed year')
-    	return False
+        print('malformed year')
+        return False
     if any(not (0< len(s) < 3) for s in it.islice(r,1,None)):
-    	print('malformed other')
-    	return False
+        print('malformed other')
+        return False
     try:
         r = [int(s) for s in r]
         if len(r) == 1:
@@ -290,7 +290,7 @@ def parse_genre(f, where, values):
     return genre
 
 def pluralize(n, kind):
-	return f"{n} {kind}{'s' if n>1 else ''}"
+    return f"{n} {kind}{'s' if n>1 else ''}"
 
 # # # # # # # # # # # # # # # # Queries # # # # # # # # # # # # # # # #
 
@@ -332,7 +332,7 @@ def get_highest_rated_actors(conn, *, fields=PRIMARY_FIELDS):
             )
             printc('b','actors in order of rating:\n- - - -')
             for name,r in cur:
-            	print(f'    {name}: {float(r):.1f}')
+                print(f'    {name}: {float(r):.1f}')
             print('- - - -')
         except Exception as e:
             print('get_highest_rated_actors: error:', repr(e))
@@ -434,7 +434,7 @@ def get_busiest_users(conn, *, fields=PRIMARY_FIELDS):
     if genre:
         _from = f'history H JOIN movie M ON (H.movie_id = M.id)'
     else:
-    	_from = 'history'
+        _from = 'history'
     
     with conn.cursor() as cur:
         try:
@@ -451,7 +451,7 @@ def get_busiest_users(conn, *, fields=PRIMARY_FIELDS):
             print('history results:')
             extra = f" (in genre '{genre}')" if genre else ''
             for u,c in cur:
-            	print(f'    user {u} has watched {c} movies{extra}')
+                print(f'    user {u} has watched {c} movies{extra}')
         except Exception as e:
             print('get_busiest_users: error:', repr(e))
 
@@ -533,12 +533,12 @@ def ending_subscriptions(conn, *, options=set('dwm'),
             )
             r = next(cur,None)
             if r is None:
-            	print('no users have subscriptions ending within {pluralize{d, "day"}}')
+                print('no users have subscriptions ending within {pluralize{d, "day"}}')
             else:
-            	result = it.chain((r,),cur)
-            	print(f'following users have subscriptions ending within {pluralize(d, "day")}')
-            	for name,end_date in result:
-            		print(f'    {name}:',end_date)
+                result = it.chain((r,),cur)
+                print(f'following users have subscriptions ending within {pluralize(d, "day")}')
+                for name,end_date in result:
+                    print(f'    {name}:',end_date)
         except Exception as e:
             print('ending_subscriptions: error:', repr(e))
 
@@ -629,13 +629,13 @@ def get_user_current_subscription_window(conn):
             if result is None:
                 printc('b', f'No subscription found for user {id}')
             else:
-            	s,m,y,e,n = result
-            	m,y = int(m),int(y)
-            	m = pluralize(m, 'month')
-            	y = pluralize(y, 'year')
-            	t = f'{y}{" "*(bool(y)*bool(m))}{m}'
-            	print(f"user {id}'s current subscription is the '{_c(n,'b')}'"
-            	      f"plan ({_c(t,'g')}), from {_c(s,'r')} - {_c(e,'r')}")
+                s,m,y,e,n = result
+                m,y = int(m),int(y)
+                m = pluralize(m, 'month')
+                y = pluralize(y, 'year')
+                t = f'{y}{" "*(bool(y)*bool(m))}{m}'
+                print(f"user {id}'s current subscription is the '{_c(n,'b')}'"
+                      f"plan ({_c(t,'g')}), from {_c(s,'r')} - {_c(e,'r')}")
         except Exception as e:
             print('get_user_current_subscription_window: error:', repr(e))
 
@@ -643,12 +643,12 @@ def get_user_current_subscription_window(conn):
 def get_actor_director_pairs(conn, *, prompt = PRIMARY_FIELDS[1]):
     """Get the number of movies that each actor, director pair have collaborated
     on, in descending order, with option to limit result count."""
-	
+    
     count = input(empty_notice(prompt))
     if count.isdigit():
-    	count = f'LIMIT {count}'
+        count = f'LIMIT {count}'
     else:
-    	count = ''
+        count = ''
 
     with conn.cursor() as cur:
         try:
@@ -994,21 +994,21 @@ def add_actors_to_movie(conn, *, id_parse=ACTOR_ID_PARSE):
     printc('b','provide roles for each actor specified (max 50 chars per role):')
     roles = (input(f'    role for actor {a}:  ') for a in actors)
     
-    act_insert_list = [(a, movie_id, r, b) for a,r,b zip(actors, roles, main_values)]
+    act_insert_list = [(a, movie_id, r, b) for a,r,b in zip(actors, roles, main_values)]
     del actors, main_values, roles
     
     conn.autocommit = False
     with conn.cursor() as cur:
         # IMPORTANT -- make this a transaction that succeeds only if all insertions successful
         try:
-			execute_batch(cur,
-			"""
-			INSERT INTO act
-				(actor_id, movie_id, role, if_main)
-			VALUES (%s, %s, %s, %s);""",
-			act_insert_list
+            execute_batch(cur,
+            """
+            INSERT INTO act
+                (actor_id, movie_id, role, if_main)
+            VALUES (%s, %s, %s, %s);""",
+            act_insert_list
             )
-			
+            
             conn.commit()
             printc('g', f'successully added {len(act_insert_list)} actors to movie {movie_id}')
         except Exception as e:
@@ -1121,9 +1121,9 @@ if __name__ == '__main__':
             else:
                 _f = _func_mapping.get(f)
                 if _f is not None:
-                	_f(conn)
+                    _f(conn)
                 else:
-                	printc('r',f'input `{f}` is not recognized')
+                    printc('r',f'input `{f}` is not recognized')
 
         except Exception as e:
             print('top-level exception:', repr(e))
