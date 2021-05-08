@@ -636,6 +636,39 @@ public class Task {
 	 * counts of how many users are currently subscribed for each plan.
 	 */
 	public void generate_subscription_counts(Connection conn) {
+		System.out.println(utility.as_bold_color("[iii]", "g") + " Count Each Subscription ==>");
+		PreparedStatement stmt = null;
+		ResultSet res = null;
+		String sql = "SELECT name, COUNT(*) count "
+				+ "FROM subscription S JOIN plan P ON (S.plan_name = P.name)  "
+				+ " WHERE start_date < CURRENT_DATE "
+				+ "AND start_date + month_length > CURRENT_DATE "
+				+ "GROUP BY name;";
+		try {
+			stmt = conn.prepareStatement(sql);
+			res = stmt.executeQuery();
+			while (res.next()) {
+				System.out.println(res.getString(1) + " : " + res.getInt(2));
+			}
+		} catch (SQLException e) {
+			System.out.println("Query Subscription counts failed,SQL error: ");
+			e.printStackTrace();
+		} catch (Exception e) {
+			System.out.println("Query Subscription counts failed, class error: ");
+			e.printStackTrace();
+		} finally {
+			try {
+				if (stmt != null)
+					stmt.close();
+				if (res != null)
+					res.close();
+			} catch (SQLException e) {
+				System.out.println("Query Subscription counts failed,SQL error: ");
+				e.printStackTrace();
+			} // end finally try
+		}
+		System.out.println(utility.as_bold_color("[iii]", "g") + " Query Subscription counts finished.");
+		
 	}
 
 	// Generate a list of all students and their advisors.
