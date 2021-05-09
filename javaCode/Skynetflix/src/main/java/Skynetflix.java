@@ -38,7 +38,7 @@ public class Skynetflix {
 					+ "\t(10) -ok- get highest rated actors\n"
 					+ "\t(11) -ok- get highest rated directors\n" 
 					+ "\t(12) -ok- get highest rated movies\n"
-					+ "\t(13) get popular movies\n" 
+					+ "\t(13) -ok- get popular movies\n" 
 					+ "\t(14) get user current subscription window\n"
 					+ "\t(15) get user genres\n" 
 					+ "\t(16) -ok- leave a review\n" 

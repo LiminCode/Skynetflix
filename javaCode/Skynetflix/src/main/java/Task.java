@@ -1058,6 +1058,83 @@ public class Task {
 	 * number of query results returned.
 	 */
 	public void get_popular_movies(Connection conn) {
+		
+		String f_name = "Get Popular Movies";
+		System.out.println(utility.as_bold_color("[iii]", "g") + f_name + "==>");
+
+		String[] fileds = new String[] { "Enter genre (press <RETURN> to leave empty):",
+				"Enter # of results to return (press <RETURN> to leave empty)",
+				"specify start date(YYYY-MM-DD) (press <RETURN> to leave empty)",
+				"specify end date (YYYY-MM-DD)(press <RETURN> to leave empty)" };
+		Utilities utility = new Utilities();
+		String[] values = utility.menu_selections(fileds);
+		String genre = values[0];
+		int limit = parseIntwithName(values[1], "Result Limit");
+		String start_date = values[2];
+		String end_date = values[3];
+
+		String sql =
+				  "                SELECT M.title, COUNT(*) num_watches "
+				+ "                FROM history H JOIN movie M "
+				+ "                    ON  (M.id = H.movie_id) " 
+				+ "                where watch_date > DATE(?) AND watch_date < DATE(?) ### "
+				+ "                GROUP BY M.id"
+				+ "                ORDER BY COUNT(*) DESC ";
+		// if
+		if (!genre.isBlank()) {
+			sql = sql.replace("###", "AND genre=?");
+		} else {
+			sql = sql.replace("###", "");
+		}
+		if (limit != -1) {
+			sql += "   LIMIT ? ";
+		}
+		PreparedStatement stmt = null;
+		ResultSet res = null;
+		try {
+			stmt = conn.prepareStatement(sql);
+			if (start_date.isBlank()) {
+				start_date = "0001-1-1";
+			}
+			if (end_date.isBlank()) {
+				end_date = "9999-1-1";
+			}
+			stmt.setString(1, start_date);
+			stmt.setString(2, end_date);
+			if (!genre.isBlank()) {
+				stmt.setString(3, genre);
+			}
+			if (limit != -1) {
+				if (!genre.isBlank()) {
+					stmt.setInt(4, limit);
+				} else {
+					stmt.setInt(3, limit);
+				}
+			}
+			res = stmt.executeQuery();
+			System.out.println("Name\t\t Number of Watches");
+			while (res.next()) {
+				System.out.println(res.getString(1) + " \t\t " + utility.big(res.getDouble(2)));
+			}
+		} catch (SQLException e) {
+			System.out.println("Query " + f_name + " failed,SQL error: ");
+			e.printStackTrace();
+		} catch (Exception e) {
+			System.out.println("Query " + f_name + " failed, class error: ");
+			e.printStackTrace();
+		} finally {
+			try {
+				if (stmt != null)
+					stmt.close();
+				if (res != null)
+					res.close();
+			} catch (SQLException e) {
+				System.out.println("Query " + f_name + " failed,SQL error: ");
+				e.printStackTrace();
+			} // end finally try
+		}
+		System.out.println(utility.as_bold_color("[iii]", "g") + " Query " + f_name + " finished.");
+
 	}
 
 	/*
