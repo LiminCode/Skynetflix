@@ -815,6 +815,96 @@ public class Task {
 	 * rating as the average rating across all the movies he starred in
 	 */
 	public void get_highest_rated_actors(Connection conn) {
+		System.out.println(utility.as_bold_color("[iii]", "g") + " Get Highest Rated Actors ==>");
+		
+		
+		String[] fileds = new String[] { "Enter genre (press <RETURN> to leave empty):",
+				"Enter # of results to return (press <RETURN> to leave empty)",
+				"specify start date(YYYY-MM-DD) (press <RETURN> to leave empty)",
+				"specify end date (YYYY-MM-DD)(press <RETURN> to leave empty)"};
+		Utilities utility = new Utilities();
+		String[] values = utility.menu_selections(fileds);
+		String genre = values[0];
+		int limit= parseIntwithName(values[1], "Result Limit");
+		String start_date = values[2];
+		String end_date = values[3];
+		
+		
+		
+		String sql = "WITH average_ratings AS "
+				+ "                    (SELECT movie_id, AVG(rating) avg_r "
+				+ "                     FROM review "
+				+ "                     GROUP BY movie_id "
+				+ "                    ) "
+				+ "                SELECT "
+				+ "                    first_name || ' ' || last_name AS name, "
+				+ "                    AVG(AR.avg_r) avg_rating "
+				+ "                FROM "
+				+ "                    actor A "
+				+ "                    JOIN act ON (act.actor_id = A.id) "
+				+ "                    JOIN average_ratings AR ON (act.movie_id = AR.movie_id) "
+				+ "                    JOIN movie M ON (M.id = AR.movie_id) "
+				+ "                where M.date_released > DATE(?) AND M.date_released < DATE(?) ### "
+				+ "                GROUP BY name "
+				+ "                ORDER BY avg_rating DESC ";
+		// if
+		if (!genre.isBlank()) {
+			sql = sql.replace("###", "AND genre=?");
+		}else {
+			sql = sql.replace("###", "");
+		}
+		if (limit != -1) {
+			sql+="   LIMIT ? ";
+		}
+		PreparedStatement stmt = null;
+		ResultSet res = null;
+		try {
+			stmt = conn.prepareStatement(sql);
+			if(start_date.isBlank()) {
+				start_date = "0001-1-1";
+			}
+			if(end_date.isBlank()) {
+				end_date = "9999-1-1";
+			}
+			stmt.setString(1, start_date);
+			stmt.setString(2, end_date);
+			if (!genre.isBlank()) {
+				stmt.setString(3, genre);
+			}
+			if (limit != -1) {
+				if (!genre.isBlank()) {
+					stmt.setInt(4, limit);
+				}else {
+					stmt.setInt(3, limit);
+				}
+			}
+			res = stmt.executeQuery();
+			System.out.println("Name\t\t Average Rating");
+			while (res.next()) {
+				System.out.println(res.getString(1) + " \t\t " + utility.big(res.getDouble(2)));
+			}
+		} catch (SQLException e) {
+			System.out.println("Query Highest Rated Actors failed,SQL error: ");
+			e.printStackTrace();
+		} catch (Exception e) {
+			System.out.println("Query Highest Rated Actors failed, class error: ");
+			e.printStackTrace();
+		} finally {
+			try {
+				if (stmt != null)
+					stmt.close();
+				if (res != null)
+					res.close();
+			} catch (SQLException e) {
+				System.out.println("Query Highest Rated Actors failed,SQL error: ");
+				e.printStackTrace();
+			} // end finally try
+		}
+		System.out.println(utility.as_bold_color("[iii]", "g") + " Query Highest Rated Actors finished.");
+		
+	
+	
+	
 	}
 
 	/*
