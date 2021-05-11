@@ -1141,12 +1141,122 @@ public class Task {
 	 * For a given user id, get the start and end dates of his current subscription.
 	 */
 	public void get_user_current_subscription_window(Connection conn) {
+		String f_name = "Get User's Subscription";
+		System.out.println(utility.as_bold_color("[iii]", "g") + f_name + "==>");
+
+		String[] fileds = new String[] { "User ID" };
+		Utilities utility = new Utilities();
+		String[] values = utility.menu_selections(fileds);
+		String genre = values[0];
+		int user_id = parseIntwithName(values[0], "User ID");
+		if (user_id == -1) {
+			return;
+		}
+		String sql ="  SELECT"
+				+ "                start_date,"
+				+ "                EXTRACT(MONTH FROM month_length) AS month, "
+				+ "                EXTRACT(YEAR FROM month_length) AS year,"
+				+ "                (start_date + month_length)::date AS end_date,"
+				+ "                name"
+				+ "            FROM"
+				+ "                subscription S JOIN plan P ON (S.plan_name = P.name)"
+				+ "            WHERE"
+				+ "                user_id = ? AND"
+				+ "                start_date <= CURRENT_DATE AND"
+				+ "                start_date + month_length >= CURRENT_DATE";
+		 
+		PreparedStatement stmt = null;
+		ResultSet res = null;
+		try {
+			stmt = conn.prepareStatement(sql);
+			 
+			stmt.setInt(1, user_id);
+			res = stmt.executeQuery();
+			System.out.println("Start Date\t Month \t Year \t End Date \t Name");
+			while (res.next()) {
+				System.out.println(res.getString(1)+"\t"+res.getString(2)+"\t"+res.getString(3)+"\t"+res.getString(4)+"\t"+res.getString(5));
+			}
+		} catch (SQLException e) {
+			System.out.println("Query " + f_name + " failed,SQL error: ");
+			e.printStackTrace();
+		} catch (Exception e) {
+			System.out.println("Query " + f_name + " failed, class error: ");
+			e.printStackTrace();
+		} finally {
+			try {
+				if (stmt != null)
+					stmt.close();
+				if (res != null)
+					res.close();
+			} catch (SQLException e) {
+				System.out.println("Query " + f_name + " failed,SQL error: ");
+				e.printStackTrace();
+			} // end finally try
+		}
+		System.out.println(utility.as_bold_color("[iii]", "g") + " Query " + f_name + " finished.");
+		
 	}
 
 	/*
 	 * Get, for each user, which genre(s) that user is most likely to watch.
 	 */
 	public void get_user_genres(Connection conn) {
+		String f_name = "Get User Genres";
+		System.out.println(utility.as_bold_color("[iii]", "g") + f_name + "==>");
+
+		String[] fileds = new String[] { "User ID" };
+		 
+		String sql =" WITH "
+				+ "                user_genre_counts as "
+				+ "                (SELECT user_id, genre, COUNT(*) c "
+				+ "                 FROM history H "
+				+ "                    JOIN movie M ON H.movie_id = M.id "
+				+ "                 GROUP BY "
+				+ "                    user_id, genre "
+				+ "                ), "
+				+ "                user_genre_max as "
+				+ "                (SELECT user_id, MAX(c) mc "
+				+ "                 FROM user_genre_counts "
+				+ "                 GROUP BY user_id "
+				+ "                ), "
+				+ "                user_genre_res AS "
+				+ "                (SELECT user_id, genre, c "
+				+ "                 FROM user_genre_counts NATURAL JOIN user_genre_max "
+				+ "                 WHERE c = mc\r\n"
+				+ "                 ORDER BY user_id)\r\n"
+				+ "            SELECT user_id, string_agg(genre, ', '), MIN(c) "
+				+ "            FROM user_genre_res "
+				+ "            GROUP BY user_id;";
+		 
+		PreparedStatement stmt = null;
+		ResultSet res = null;
+		try {
+			stmt = conn.prepareStatement(sql);
+			 
+			res = stmt.executeQuery();
+			System.out.println("User ID\t Genre \t Count ");
+			while (res.next()) {
+				System.out.println(res.getString(1)+"\t"+res.getString(2)+"\t"+res.getString(3));
+			}
+		} catch (SQLException e) {
+			System.out.println("Query " + f_name + " failed,SQL error: ");
+			e.printStackTrace();
+		} catch (Exception e) {
+			System.out.println("Query " + f_name + " failed, class error: ");
+			e.printStackTrace();
+		} finally {
+			try {
+				if (stmt != null)
+					stmt.close();
+				if (res != null)
+					res.close();
+			} catch (SQLException e) {
+				System.out.println("Query " + f_name + " failed,SQL error: ");
+				e.printStackTrace();
+			} // end finally try
+		}
+		System.out.println(utility.as_bold_color("[iii]", "g") + " Query " + f_name + " finished.");
+		
 	}
 
 	/*
