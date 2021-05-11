@@ -42,11 +42,11 @@ public class Skynetflix {
 					+ "\t(14) -ok- get user current subscription window\n"
 					+ "\t(15) -ok- get user genres\n" 
 					+ "\t(16) -ok- leave a review\n" 
-					+ "\t(18) remove user\n" 
-					+ "\t(19)  -ok- add director\n" 
-					+ "\t(20)  -ok- add studio\n"
-					+ "\t(21)  -ok- get user info by id\n" 
-					+ "\t(22)  -ok- add actor\n"
+					+ "\t(18) -ok- remove user\n" 
+					+ "\t(19) -ok- add director\n" 
+					+ "\t(20) -ok- add studio\n"
+					+ "\t(21) -ok- get user info by id\n" 
+					+ "\t(22) -ok- add actor\n"
 					+ "Enter an integer or enter 'q' to exit: \n");
 
 			String call = scan.nextLine();
@@ -109,9 +109,6 @@ public class Skynetflix {
 				break;
 			case 16:
 				task.leave_a_review(conn);
-				break;
-			case 17:
-				task.relist_movie(conn);
 				break;
 			case 18:
 				task.remove_user(conn);

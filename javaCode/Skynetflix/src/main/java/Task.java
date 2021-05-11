@@ -1147,7 +1147,6 @@ public class Task {
 		String[] fileds = new String[] { "User ID" };
 		Utilities utility = new Utilities();
 		String[] values = utility.menu_selections(fileds);
-		String genre = values[0];
 		int user_id = parseIntwithName(values[0], "User ID");
 		if (user_id == -1) {
 			return;
@@ -1203,9 +1202,6 @@ public class Task {
 	public void get_user_genres(Connection conn) {
 		String f_name = "Get User Genres";
 		System.out.println(utility.as_bold_color("[iii]", "g") + f_name + "==>");
-
-		String[] fileds = new String[] { "User ID" };
-		 
 		String sql =" WITH "
 				+ "                user_genre_counts as "
 				+ "                (SELECT user_id, genre, COUNT(*) c "
@@ -1369,15 +1365,46 @@ public class Task {
 		}
 	}
 
-	/*
-	 * Set a movie's active status to true, meaning it is actively streaming. The
-	 * movie must already be present in the database. Keep historical records of the
-	 * movie being watched.
-	 */
-	public void relist_movie(Connection conn) {
-	}
 
 	public void remove_user(Connection conn) {
+		String f_name = "Remove User";
+		System.out.println(utility.as_bold_color("[iii]", "g") + f_name + "==>");
+
+		String[] fileds = new String[] { "User ID" };
+		Utilities utility = new Utilities();
+		String[] values = utility.menu_selections(fileds);
+		int user_id = parseIntwithName(values[0], "User ID");
+		if (user_id == -1) {
+			return;
+		}
+		String sql ="DELETE FROM users "
+				+ "WHERE id = ?";
+		
+		PreparedStatement stmt = null;
+		int res = 0;
+		try {
+			stmt = conn.prepareStatement(sql);
+			 
+			stmt.setInt(1, user_id);
+			res = stmt.executeUpdate();
+			System.out.println("User deleted, row deleted:"+res);
+		} catch (SQLException e) {
+			System.out.println("Query " + f_name + " failed,SQL error: ");
+			e.printStackTrace();
+		} catch (Exception e) {
+			System.out.println("Query " + f_name + " failed, class error: ");
+			e.printStackTrace();
+		} finally {
+			try {
+				if (stmt != null)
+					stmt.close();
+			} catch (SQLException e) {
+				System.out.println("Query " + f_name + " failed,SQL error: ");
+				e.printStackTrace();
+			} // end finally try
+		}
+		System.out.println(utility.as_bold_color("[iii]", "g") + f_name + " finished.");
+		
 	}
 
 	public int parseIntwithName(String str, String name) {
