@@ -1091,7 +1091,7 @@ if __name__ == '__main__':
     # create database connection
     user = input("Enter database user: ")
     database = simple_select('Which database? (enter s for small, b for big)', ('s','b'))
-    database = 'skynetflix_small' if database=='s' else 'skynetflix_big'
+    database = 'skynetflix_small' if database=='s' else 'skynetflix_large'
     conn = psycopg2.connect(
         database=database,
         user=user,

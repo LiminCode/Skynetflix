@@ -1,10 +1,15 @@
+import sys
+import itertools as it
 import datetime as dt
+from collections import deque
 
 import psycopg2
 from psycopg2 import ProgrammingError, IntegrityError
 from psycopg2.extras import execute_batch
 
 import numpy as np
+
+import platform
 
 # more portable implementation might use a pypi packaged
 # but this suffices for now
@@ -85,7 +90,7 @@ def populate_act(conn):
 	with conn.cursor() as cur:
 		try:
 			cur.execute("SELECT id FROM actor;")
-			actors = np.array(tuple(cur), dtype=int)
+			actors = np.array([r[0] for r in cur], dtype=int)
 			conn.commit()
 		except Exception as e:
 			print('populate act: retrieve actors: exception:', repr(e))
@@ -93,7 +98,7 @@ def populate_act(conn):
 			return
 		try:
 			cur.execute("SELECT id FROM movie;")
-			movies = np.array(tuple(cur), dtype=int)
+			movies = tuple(r[0] for r in cur)
 			conn.commit()
 		except Exception as e:
 			print('populate act: retrieve actors: exception:', repr(e))
@@ -105,12 +110,12 @@ def populate_act(conn):
 			actors,
 			size = np.random.randint(5,20),
 			replace=False
-		)
+		).tolist()
 		for m in movies
 	]
 	
 	# simplifying assumption: each movie has one main actor
-	main = [(True,)+(False,)*len(a-1) for a in actor_ids_per_movie]
+	main = [(True,)+(False,)*(len(a)-1) for a in actor_ids_per_movie]
 	role = [tuple(f'role {i}' for i,id in enumerate(a,1)) for a in actor_ids_per_movie]
 	act_insert_list = [
 		(m,*i)
@@ -158,12 +163,12 @@ def populate_actor(conn, *, count = 500):
 	first_names = (f'actor {i} first' for i in actors)
 	last_names = (f'actor {i} last' for i in actors)
 # 	infos = (f'some info about actor {i}' for i in actors) # wound up not including this
-	genders = np.random.choice(['m','f'], size=count, replace=True)
-	ages = np.random.randint(20, 81, count)
+	genders = np.random.choice(['m','f'], size=count, replace=True).tolist()
+	ages = np.random.randint(20, 81, count).tolist()
+	
+	actor_insert_list = list(zip(first_names, last_names, genders, ages))
 	
 	del ages,genders
-	
-	actor_insert_list = list(zip(first_names, last_names, genders, info))
 	with conn.cursor() as cur:
 		try:
 			execute_batch(cur,
@@ -196,7 +201,7 @@ def populate_director(conn, *, count = 500):
 	# keep things simple here
 	first_names = (f'director {i} first' for i in directors)
 	last_names = (f'director {i} last' for i in directors)
-	ages = np.random.randint(30, 81, count)
+	ages = np.random.randint(30, 81, count).tolist()
 	director_insert_list = list(zip(first_names, last_names, ages))
 	
 	del ages
@@ -260,14 +265,49 @@ create table history
 );
 """
 
-####  THIS HAS TO BE UPDATED
+def _populate_history_user_choice(user, movies_dates, m, n, history_insert_list, today):
+	
+	# this is the complete history of movies for this user
+	#
+	# simplification: a user watches a given movie only once on any given day
+	#
+	# also to simplify things, we do not ensure that users are watching movies
+	#     during all times when they have a subscription
+	#         since the subscription table is randomly populated
+	#         based on the history table;
+	#     the two-way dependency is unnecessarily complex
+	#         for this application
+	choice = {
+		# the set comprehension ensures any given movie can be watched
+		#     at most once on a given day, as stated above
+		(
+			user,
+			movies_dates[i][0], # movie id
+			# user watched this movie some random time
+			# between when it was first produced and today
+			
+			# use if-else here because np.random.randint raises an error
+			# with argument 0, which happens if the movie was produced today
+			today if movies_dates[i][1]==today
+				else
+				movies_dates[i][1] + dt.timedelta(
+					np.random.randint((today - movies_dates[i][1]).days)
+				)
+			
+		)
+		for i in np.random.choice(m,
+								  size = np.random.randint(1,n),
+								  replace = True)
+	}
+	is_finished = np.random.randint(2, size = len(choice), dtype=bool).tolist()
+	history_insert_list.extend((*c, f) for c,f in zip(choice, is_finished))
 
 def populate_history(conn):
 	with conn.cursor() as cur:
 		try:
 			cur.execute(
 			"""
-			SELECT movie_id, date_released
+			SELECT id, date_released
 			FROM movie;"""
 			)
 			movies_dates = tuple(cur)
@@ -280,7 +320,7 @@ def populate_history(conn):
 	with conn.cursor() as cur:
 		try:
 			cur.execute("""SELECT id FROM users;""")
-			users = tuple(cur)
+			users = tuple(r[0] for r in cur)
 			conn.commit()
 		except Exception as e:
 			print('populate history: select users: exception:', repr(e))
@@ -294,56 +334,32 @@ def populate_history(conn):
 	
 	history_insert_list = []
 	
-	for user in users:
-		
-		# this is the complete history of movies for this user
-		#
-		# simplification: a user watches a given movie only once on any given day
-		#
-		# also to simplify things, we do not ensure that users are watching movies
-		#     during all times when they have a subscription
-		#         since the subscription table is randomly populated
-		#         based on the history table;
-		#     the two-way dependency is unnecessarily complex
-		#         for this application
-		choice = {
-			# the set comprehension ensures any given movie can be watched
-			#     at most once on a given day, as stated above
-			(
-				user,
-				movies_dates[i][0], # movie id
-				# user watched this movie some random time
-				# between when it was first produced and today
-				
-				# use if-else here because np.random.randint raises an error
-				# with argument 0, which happens if the movie was produced today
-				today if movies_dates[i][1]==today
-					else
-					movies_dates[i][1] + dt.timedelta(
-						np.random.randint((today - movies_dates[i][1]).days)
-					)
-				
-			)
-			for i in np.random.choice(m,
-									  size = np.random.randint(1,n),
-									  replace = True)
-		}
-		is_finished = np.random.randint(2, size = len(choice), dtype=bool)
-		history_insert_list.extend((*c, f) for c,f in zip(choice, is_finished))
+# 	print('populate history:')
+# 	print('movies_dates:')
+# 	print(movies_dates)
+# 	print('users:')
+# 	print(users)
 	
-	del is_finished, choice, m
+	deque( # consumes the whole iterable, but much faster than Python for-loop
+		(_populate_history_user_choice(user, movies_dates, m, n,
+		 	history_insert_list, today) for user in users
+		),
+		maxlen=0
+	)
 	
+# 	print('history_insert_list: first 3 entries to insert:',history_insert_list[:3])
 	with conn.cursor() as cur:
 		try:
 			execute_batch(cur,
 			"""
 			INSERT INTO history
-				(user_id, movie_id, date)
-			VALUES (%s, %s, %s);
+				(user_id, movie_id, watch_date, is_finished)
+			VALUES (%s, %s, %s, %s);
 			""",
 			history_insert_list,
 			page_size = 1000
 			)
+			printc('successfully inserted {len(history_insert_list)} history events')
 		except Exception as e:
 			print('populate history: insert history: exception:',repr(e))
 
@@ -387,7 +403,7 @@ def populate_movie(conn):
 	with conn.cursor() as cur:
 		try:
 			cur.execute("SELECT id FROM director;")
-			directors = tuple(map(int,cur))
+			directors = tuple(r[0] for r in cur)
 			conn.commit()
 		except Exception as e:
 			print('populate movie: select director ids: exception:',repr(e))
@@ -404,10 +420,10 @@ def populate_movie(conn):
 # 			conn.rollback()
 # 			return
 	
-	# choose randomly from 10 genres
-	genres = tuple(f'genre {i}' for genre in np.random.randint(1,11,num_movies))
-	
 	num_movies = 10000
+	
+	# choose randomly from 10 genres
+	genres = tuple(f'genre {i}' for i in np.random.randint(1,11,num_movies))
 	
 	chars = np.array(list(
 		'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_'
@@ -429,17 +445,19 @@ def populate_movie(conn):
 	dates = tuple(dates[_] for _ in i)
 	del i
 	
-	intervals = [((dt.date().today()-d) - dt.timedelta(10)).days for d in dates]
-	dates = tuple(d + i for d,i in zip(dates,np.random.randint(intervals)))
+	intervals = np.array([((dt.date.today()-d) - dt.timedelta(10)).days for d in dates])
+	intervals[intervals==0]=1
+	
+	dates = tuple(d + dt.timedelta(i) for d,i in zip(dates,np.random.randint(intervals).tolist()))
 	del intervals
 	
 	directors = np.random.choice(
 		directors,
 		size = num_movies,
 		replace = True
-	)
+	).tolist()
 	
-	ratings = np.random.choice(['G','PG','PG-13','R'], size=num_movies, replace=True)
+	ratings = np.random.choice(['G','PG','PG-13','R'], size=num_movies, replace=True).tolist()
 	
 	movie_insert_list = [
 		(
@@ -454,9 +472,9 @@ def populate_movie(conn):
 			studio,
 			director
 		)
-		for m,url,genre,date,budget,income,studio,director in zip(
-			movies, urls, genres, dates, studios,
-			budgets, ratings, incomes, studios, directors
+		for m,url,genre,date,budget,rating,income,studio,director in zip(
+			range(num_movies), urls.tolist(), genres, dates, budgets.tolist(),
+			ratings, incomes.tolist(), studios, directors
 		)
 	]
 	
@@ -659,7 +677,7 @@ def populate_review(conn):
 		users_movies_dates,
 		size = len(users_movies_dates)//2,
 		replace=False
-	))
+	).tolist())
 	
 	# assume that probabilities of higher ratings are higher
 	# there's probably some fellow in the field of sociology who named a law after that
@@ -671,7 +689,7 @@ def populate_review(conn):
 		np.arange(1,6),
 		size = len(users),
 		p = ratings_probabilites
-	)
+	).tolist()
 	
 	review_insert_list = [
 		(
@@ -745,7 +763,8 @@ def populate_studio(conn):
 				INSERT INTO studio (name, date_founded, budget)
 				VALUES (%s, %s, %s);
 				""",
-				(f'studio {i}',dt.date.today(), np.random.randint(3*10**9,10**10+1))
+				(f'studio {i}',dt.date.today()-dt.timedelta(3663),
+				 int(np.random.randint(3*10**9,10**10+1)))
 				)
 			conn.commit()
 			printc('g','studio table populated')
@@ -804,7 +823,7 @@ def populate_subscription(conn):
 		while True:
 			plan,length = np.random.choice(plans_lengths)
 			end_date = start_date + length
-			purchased_date = start_date - np.random.randint(1,11)
+			purchased_date = start_date - int(np.random.randint(1,11))
 			subscription_insert_list.append((u,plan,start_date,purchased_date))
 			start_date = end_date+1
 			if start_date > dt.date.today():
@@ -851,13 +870,13 @@ def populate_users(conn):
 			1
 		)
 	)
-	phone_numers = np.random.randint(10**9,2*10**9-1,size=len(users)).astype('U10')
+	phone_numbers = np.random.randint(10**9,2*10**9-1,size=len(users)).astype('U10').tolist()
 	chars = np.array(list(
 		'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_!@#$%^&*'
 		), dtype='U1'
-	)
+	).tolist()
 	# if only user passwords were this strong...
-	passwords = np.array(list(map(''.join, np.random.choice(chars,[count,60]))))
+	passwords = np.array(list(map(''.join, np.random.choice(chars,[count,30])))).tolist()
 	
 	user_insert_list = [
 		(f'user {u} first',f'user {u} last',email,phone,pwd)
@@ -907,7 +926,24 @@ if __name__ == '__main__':
 	user = input("Enter database user: ")
 	
 	conn = psycopg2.connect(host="localhost", port=5432, \
-		dbname="small_example", user=user)
+		dbname="skynetflix_large", user=user)
+	
+	statements = (
+		"select setval('users_id_seq',(SELECT MAX(id) FROM users)+1,false);"
+		"select setval('movie_id_seq',(SELECT MAX(id) FROM movie)+1,false);"
+		"select setval('actor_id_seq',(SELECT MAX(id) FROM actor)+1,false);"
+		"select setval('director_id_seq',(SELECT MAX(id) FROM director)+1,false);"
+	)
+	with conn.cursor() as cur:
+		try:
+			for s in statements:
+				cur.execute(s)
+		except Exception as e:
+			print('setval statements: exception:',repr(e))
+			conn.rollback()
+			print('setval statements failed to execute, exiting program')
+			conn.close()
+			sys.exit()
 	
 	populate_actor(conn)
 	populate_director(conn)
@@ -918,8 +954,8 @@ if __name__ == '__main__':
 	
 	populate_movie(conn)
 # 	populate_produce() # (not used)
-	populate_act(conn)
-	populate_history(conn)
+	populate_act(conn)					## CHECK WHEN 'if_main' type changed
+	populate_history(conn)				## CHECK WHEN 'is_finished' type changed
 # 	populate_progress(conn) # (removed)
 	populate_review(conn)
 	populate_subscription(conn)
