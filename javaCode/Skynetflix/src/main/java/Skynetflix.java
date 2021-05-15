@@ -26,27 +26,27 @@ public class Skynetflix {
 		boolean quit = false;
 		while (!quit) {
 			System.out.println("\033[32;4m" + "=".repeat(50) + "\033[0m" + "\nWhat would you like to do?\n"
-					+ "\t(0) -ok- Add actors to movie\n" 
-					+ "\t(1) -ok- add movie\n" 
-					+ "\t(2) -ok- add user\n"
-					+ "\t(4) -ok- ending subscriptions\n" 
-					+ "\t(5) -ok- generate subscription counts\n"
-					+ "\t(6) -ok- get movies\n" 
-					+ "\t(7) -ok- get actor director pairs\n" 
-					+ "\t(8) get busiest users\n"
-					+ "\t(9) -ok- get highest grossing studios\n" 
-					+ "\t(10) get highest rated actors\n"
-					+ "\t(11) get highest rated directors\n" 
-					+ "\t(12) get highest rated movies\n"
-					+ "\t(13) get popular movies\n" 
-					+ "\t(14) get user current subscription window\n"
-					+ "\t(15) get user genres\n" 
+					+ "\t( 0) -ok- Add actors to movie\n" 
+					+ "\t( 1) -ok- add movie\n" 
+					+ "\t( 2) -ok- add user\n"
+					+ "\t( 4) -ok- ending subscriptions\n" 
+					+ "\t( 5) -ok- generate subscription counts\n"
+					+ "\t( 6) -ok- get movies\n" 
+					+ "\t( 7) -ok- get actor director pairs\n" 
+					+ "\t( 8) get busiest users\n"
+					+ "\t( 9) -ok- get highest grossing studios\n" 
+					+ "\t(10) -ok- get highest rated actors\n"
+					+ "\t(11) -ok- get highest rated directors\n" 
+					+ "\t(12) -ok- get highest rated movies\n"
+					+ "\t(13) -ok- get popular movies\n" 
+					+ "\t(14) -ok- get user current subscription window\n"
+					+ "\t(15) -ok- get user genres\n" 
 					+ "\t(16) -ok- leave a review\n" 
-					+ "\t(18) remove user\n" 
-					+ "\t(19)  -ok- add director\n" 
-					+ "\t(20)  -ok- add studio\n"
-					+ "\t(21)  -ok- get user info by id\n" 
-					+ "\t(22)  -ok- add actor\n"
+					+ "\t(18) -ok- remove user\n" 
+					+ "\t(19) -ok- add director\n" 
+					+ "\t(20) -ok- add studio\n"
+					+ "\t(21) -ok- get user info by id\n" 
+					+ "\t(22) -ok- add actor\n"
 					+ "Enter an integer or enter 'q' to exit: \n");
 
 			String call = scan.nextLine();
@@ -109,9 +109,6 @@ public class Skynetflix {
 				break;
 			case 16:
 				task.leave_a_review(conn);
-				break;
-			case 17:
-				task.relist_movie(conn);
 				break;
 			case 18:
 				task.remove_user(conn);

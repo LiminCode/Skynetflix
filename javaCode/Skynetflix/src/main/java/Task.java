@@ -17,7 +17,7 @@ public class Task {
 		System.out.println("** Note ** : To enter actors, provide each actor's id #, space-separated."
 				+ " If the actor is a main actor, enter the actor id with a * at "
 				+ "its end (without space), e.g. 12345*. To enter Roles, separate each actor's role by '#', leave space but also followed a '#' if the role is unknown. ");
-		String[] fileds = new String[] { "Movie ID", "Actors","Roles" };
+		String[] fileds = new String[] { "Movie ID", "Actors", "Roles" };
 		Utilities utility = new Utilities();
 		String[] values = utility.menu_selections(fileds);
 		int movie_id = parseIntwithName(values[0], "Movie ID");
@@ -552,8 +552,6 @@ public class Task {
 		}
 	}
 
- 
-
 	/*
 	 * Get all users whose subscriptions are ending within a short time frame (week
 	 * or month) from the current date Generate a list of users whose subscriptions
@@ -561,55 +559,50 @@ public class Task {
 	 */
 	public void ending_subscriptions(Connection conn) {
 		System.out.println(utility.as_bold_color("[iii]", "g") + " Ending Subscriptions ==>");
-		String[] fileds = new String[] { "enter window here ('d'=day, 'w'=week, or 'm'=month):"  };
-		
+		String[] fileds = new String[] { "enter window here ('d'=day, 'w'=week, or 'm'=month):" };
+
 		Utilities utility = new Utilities();
 		String[] values = utility.menu_selections(fileds);
 		String window = values[0];
-		while (!(window.equals("d")||window.equals("w")||window.equals("m"))) {
-			System.out.println("Input "+window+" is invalid: select from {'w', 'd', 'm'} ");
+		while (!(window.equals("d") || window.equals("w") || window.equals("m"))) {
+			System.out.println("Input " + window + " is invalid: select from {'w', 'd', 'm'} ");
 			values = utility.menu_selections(fileds);
 			window = values[0];
 		}
 		//
-		
 
 		PreparedStatement stmt = null;
 		ResultSet res = null;
-		String sql = " SELECT  "
-				+ "U.first_name || ' ' || U.last_name AS name,  "
-				+ " (start_date + month_length)::date AS end_date "
-				+ "FROM  subscription S   "
-				+ "JOIN plan P ON (S.plan_name = P.name)   "
-				+ "JOIN users U ON (U.id = S.user_id) "
+		String sql = " SELECT  " + "U.first_name || ' ' || U.last_name AS name,  "
+				+ " (start_date + month_length)::date AS end_date " + "FROM  subscription S   "
+				+ "JOIN plan P ON (S.plan_name = P.name)   " + "JOIN users U ON (U.id = S.user_id) "
 				+ " WHERE  start_date + month_length > CURRENT_DATE "
-				+ "AND  start_date + month_length - CURRENT_DATE <= ?  "
-				+ " ORDER BY start_date + month_length DESC;";
-		if(window=="d") {
+				+ "AND  start_date + month_length - CURRENT_DATE <= ?  " + " ORDER BY start_date + month_length DESC;";
+		if (window == "d") {
 			window = "1 days";
 			sql = sql.replace("?", "'1 days'");
-		}else if (window=="w") {
+		} else if (window == "w") {
 			window = "7 days";
 			sql = sql.replace("?", "'7 days'");
-		}else {
+		} else {
 			window = "30 days";
 			sql = sql.replace("?", "'30 days'");
 		}
 		PreparedStatement statement = null;
 		try {
 			statement = conn.prepareStatement(sql);
-			 
+
 			res = statement.executeQuery();
-			System.out.println("following users have subscriptions ending within "+window);
-			int count=0;
+			System.out.println("following users have subscriptions ending within " + window);
+			int count = 0;
 			while (res.next()) {
 				String name = res.getString(1);
 				String end_date = res.getString(2);
-				System.out.println(name+ " : " + end_date);
+				System.out.println(name + " : " + end_date);
 				count++;
 			}
-			if(count==0) {
-				System.out.println("No users have subscriptions ending within "+window);
+			if (count == 0) {
+				System.out.println("No users have subscriptions ending within " + window);
 			}
 		} catch (SQLException e) {
 			System.out.println("Query Ending Subscription failed,SQL error: ");
@@ -639,10 +632,8 @@ public class Task {
 		System.out.println(utility.as_bold_color("[iii]", "g") + " Count Each Subscription ==>");
 		PreparedStatement stmt = null;
 		ResultSet res = null;
-		String sql = "SELECT name, COUNT(*) count "
-				+ "FROM subscription S JOIN plan P ON (S.plan_name = P.name)  "
-				+ " WHERE start_date < CURRENT_DATE "
-				+ "AND start_date + month_length > CURRENT_DATE "
+		String sql = "SELECT name, COUNT(*) count " + "FROM subscription S JOIN plan P ON (S.plan_name = P.name)  "
+				+ " WHERE start_date < CURRENT_DATE " + "AND start_date + month_length > CURRENT_DATE "
 				+ "GROUP BY name;";
 		try {
 			stmt = conn.prepareStatement(sql);
@@ -668,7 +659,7 @@ public class Task {
 			} // end finally try
 		}
 		System.out.println(utility.as_bold_color("[iii]", "g") + " Query Subscription counts finished.");
-		
+
 	}
 
 	// Generate a list of all students and their advisors.
@@ -713,31 +704,30 @@ public class Task {
 	 */
 	public void get_actor_director_pairs(Connection conn) {
 		System.out.println(utility.as_bold_color("[iii]", "g") + " Count Actor Director Pairs ==>");
-		String[] fileds = new String[] { "Result Limit(leave empty if no)"};
+		String[] fileds = new String[] { "Result Limit(leave empty if no)" };
 		Utilities utility = new Utilities();
 		String[] values = utility.menu_selections(fileds);
-		int limit= parseIntwithName(values[0], "Result Limit");
-		
+		int limit = parseIntwithName(values[0], "Result Limit");
+
 		PreparedStatement stmt = null;
 		ResultSet res = null;
 		String sql = "SELECT actor_id, director_id, COUNT(*) num_movies "
-				+ "FROM  act A JOIN movie M ON (A.movie_id = M.id)  "
-				+ "GROUP BY  actor_id, director_id ORDER BY     "
-				+ " COUNT(*) DESC, actor_id ASC, director_id ASC" ;
+				+ "FROM  act A JOIN movie M ON (A.movie_id = M.id)  " + "GROUP BY  actor_id, director_id ORDER BY     "
+				+ " COUNT(*) DESC, actor_id ASC, director_id ASC";
 		if (limit != -1) {
-			sql+="   LIMIT ?;";
+			sql += "   LIMIT ?;";
 		}
 		try {
 			stmt = conn.prepareStatement(sql);
-			
+
 			if (limit != -1) {
-				
+
 				stmt.setInt(1, limit);
 			}
 			res = stmt.executeQuery();
 			System.out.println("Actor ID\t Director ID\t Movies");
 			while (res.next()) {
-				System.out.println(res.getInt(1) + " \t\t " + res.getInt(2)+ " \t\t " + res.getInt(3));
+				System.out.println(res.getInt(1) + " \t\t " + res.getInt(2) + " \t\t " + res.getInt(3));
 			}
 		} catch (SQLException e) {
 			System.out.println("Query Actor Director Pairs failed,SQL error: ");
@@ -757,7 +747,7 @@ public class Task {
 			} // end finally try
 		}
 		System.out.println(utility.as_bold_color("[iii]", "g") + " Query Actor Director Pairs finished.");
-		
+
 	}
 
 	/*
@@ -770,24 +760,20 @@ public class Task {
 
 	public void get_highest_grossing_studios(Connection conn) {
 		System.out.println(utility.as_bold_color("[iii]", "g") + " Get Highest Grossing Studios ==>");
-		 
-	 
+
 		Utilities utility = new Utilities();
 		PreparedStatement stmt = null;
 		ResultSet res = null;
-		String sql = "SELECT studio, SUM(gross_income) revenue "
-				+ "            FROM movie "
-				+ "            GROUP BY "
-				+ "                studio "
-				+ "            ORDER BY revenue;" ;
-	 
+		String sql = "SELECT studio, SUM(gross_income) revenue " + "            FROM movie " + "            GROUP BY "
+				+ "                studio " + "            ORDER BY revenue;";
+
 		try {
 			stmt = conn.prepareStatement(sql);
 			res = stmt.executeQuery();
 			System.out.println("Studio\t\t Gross Income");
 			while (res.next()) {
 				String num = utility.big(res.getDouble(2));
-				System.out.println(res.getString(1) + " \t\t " +num);
+				System.out.println(res.getString(1) + " \t\t " + num);
 			}
 		} catch (SQLException e) {
 			System.out.println("Query Highest Grossing Studios failed,SQL error: ");
@@ -807,14 +793,7 @@ public class Task {
 			} // end finally try
 		}
 		System.out.println(utility.as_bold_color("[iii]", "g") + " Query Highest Grossing Studios  finished.");
-		
-	}
 
-	/*
-	 * Which actors have the highest associated movie ratings? Calculate an actor's
-	 * rating as the average rating across all the movies he starred in
-	 */
-	public void get_highest_rated_actors(Connection conn) {
 	}
 
 	/*
@@ -822,6 +801,169 @@ public class Task {
 	 * director's rating as the average rating across all the movies he directed
 	 */
 	public void get_highest_rated_directors(Connection conn) {
+		String f_name = "Get Highest Rated Directors";
+		System.out.println(utility.as_bold_color("[iii]", "g") + f_name + "==>");
+
+		String[] fileds = new String[] { "Enter genre (press <RETURN> to leave empty):",
+				"Enter # of results to return (press <RETURN> to leave empty)",
+				"specify start date(YYYY-MM-DD) (press <RETURN> to leave empty)",
+				"specify end date (YYYY-MM-DD)(press <RETURN> to leave empty)" };
+		Utilities utility = new Utilities();
+		String[] values = utility.menu_selections(fileds);
+		String genre = values[0];
+		int limit = parseIntwithName(values[1], "Result Limit");
+		String start_date = values[2];
+		String end_date = values[3];
+
+		String sql = "WITH average_ratings AS " + "                    (SELECT movie_id, AVG(rating) avg_r "
+				+ "                     FROM review " + "                     GROUP BY movie_id "
+				+ "                    ) " + "                SELECT "
+				+ "                    first_name || ' ' || last_name AS name, "
+				+ "                    AVG(AR.avg_r) avg_rating " + "                FROM "
+				+ "                    director D " + "                    JOIN movie M ON (D.id = M.director_id) "
+				+ "                    JOIN average_ratings AR ON (M.id = AR.movie_id) "
+				+ "                where M.date_released > DATE(?) AND M.date_released < DATE(?) ### "
+				+ "                GROUP BY name " + "                ORDER BY avg_rating DESC ";
+		// if
+		if (!genre.isBlank()) {
+			sql = sql.replace("###", "AND genre=?");
+		} else {
+			sql = sql.replace("###", "");
+		}
+		if (limit != -1) {
+			sql += "   LIMIT ? ";
+		}
+		PreparedStatement stmt = null;
+		ResultSet res = null;
+		try {
+			stmt = conn.prepareStatement(sql);
+			if (start_date.isBlank()) {
+				start_date = "0001-1-1";
+			}
+			if (end_date.isBlank()) {
+				end_date = "9999-1-1";
+			}
+			stmt.setString(1, start_date);
+			stmt.setString(2, end_date);
+			if (!genre.isBlank()) {
+				stmt.setString(3, genre);
+			}
+			if (limit != -1) {
+				if (!genre.isBlank()) {
+					stmt.setInt(4, limit);
+				} else {
+					stmt.setInt(3, limit);
+				}
+			}
+			res = stmt.executeQuery();
+			System.out.println("Name\t\t Average Rating");
+			while (res.next()) {
+				System.out.println(res.getString(1) + " \t\t " + utility.big(res.getDouble(2)));
+			}
+		} catch (SQLException e) {
+			System.out.println("Query " + f_name + " failed,SQL error: ");
+			e.printStackTrace();
+		} catch (Exception e) {
+			System.out.println("Query " + f_name + " failed, class error: ");
+			e.printStackTrace();
+		} finally {
+			try {
+				if (stmt != null)
+					stmt.close();
+				if (res != null)
+					res.close();
+			} catch (SQLException e) {
+				System.out.println("Query " + f_name + " failed,SQL error: ");
+				e.printStackTrace();
+			} // end finally try
+		}
+		System.out.println(utility.as_bold_color("[iii]", "g") + " Query " + f_name + " finished.");
+
+	}
+
+	/*
+	 * Which actors have the highest associated movie ratings? Calculate an actor's
+	 * rating as the average rating across all the movies he starred in
+	 */
+	public void get_highest_rated_actors(Connection conn) {
+		System.out.println(utility.as_bold_color("[iii]", "g") + " Get Highest Rated Actors ==>");
+
+		String[] fileds = new String[] { "Enter genre (press <RETURN> to leave empty):",
+				"Enter # of results to return (press <RETURN> to leave empty)",
+				"specify start date(YYYY-MM-DD) (press <RETURN> to leave empty)",
+				"specify end date (YYYY-MM-DD)(press <RETURN> to leave empty)" };
+		Utilities utility = new Utilities();
+		String[] values = utility.menu_selections(fileds);
+		String genre = values[0];
+		int limit = parseIntwithName(values[1], "Result Limit");
+		String start_date = values[2];
+		String end_date = values[3];
+
+		String sql = "WITH average_ratings AS " + "                    (SELECT movie_id, AVG(rating) avg_r "
+				+ "                     FROM review " + "                     GROUP BY movie_id "
+				+ "                    ) " + "                SELECT "
+				+ "                    first_name || ' ' || last_name AS name, "
+				+ "                    AVG(AR.avg_r) avg_rating " + "                FROM "
+				+ "                    actor A " + "                    JOIN act ON (act.actor_id = A.id) "
+				+ "                    JOIN average_ratings AR ON (act.movie_id = AR.movie_id) "
+				+ "                    JOIN movie M ON (M.id = AR.movie_id) "
+				+ "                where M.date_released > DATE(?) AND M.date_released < DATE(?) ### "
+				+ "                GROUP BY name " + "                ORDER BY avg_rating DESC ";
+		// if
+		if (!genre.isBlank()) {
+			sql = sql.replace("###", "AND genre=?");
+		} else {
+			sql = sql.replace("###", "");
+		}
+		if (limit != -1) {
+			sql += "   LIMIT ? ";
+		}
+		PreparedStatement stmt = null;
+		ResultSet res = null;
+		try {
+			stmt = conn.prepareStatement(sql);
+			if (start_date.isBlank()) {
+				start_date = "0001-1-1";
+			}
+			if (end_date.isBlank()) {
+				end_date = "9999-1-1";
+			}
+			stmt.setString(1, start_date);
+			stmt.setString(2, end_date);
+			if (!genre.isBlank()) {
+				stmt.setString(3, genre);
+			}
+			if (limit != -1) {
+				if (!genre.isBlank()) {
+					stmt.setInt(4, limit);
+				} else {
+					stmt.setInt(3, limit);
+				}
+			}
+			res = stmt.executeQuery();
+			System.out.println("Name\t\t Average Rating");
+			while (res.next()) {
+				System.out.println(res.getString(1) + " \t\t " + utility.big(res.getDouble(2)));
+			}
+		} catch (SQLException e) {
+			System.out.println("Query Highest Rated Actors failed,SQL error: ");
+			e.printStackTrace();
+		} catch (Exception e) {
+			System.out.println("Query Highest Rated Actors failed, class error: ");
+			e.printStackTrace();
+		} finally {
+			try {
+				if (stmt != null)
+					stmt.close();
+				if (res != null)
+					res.close();
+			} catch (SQLException e) {
+				System.out.println("Query Highest Rated Actors failed,SQL error: ");
+				e.printStackTrace();
+			} // end finally try
+		}
+		System.out.println(utility.as_bold_color("[iii]", "g") + " Query Highest Rated Actors finished.");
+
 	}
 
 	/*
@@ -830,6 +972,84 @@ public class Task {
 	 * and limiting number of query results returned.
 	 */
 	public void get_highest_rated_movies(Connection conn) {
+		String f_name = "Get Highest Rated Movies";
+		System.out.println(utility.as_bold_color("[iii]", "g") + f_name + "==>");
+
+		String[] fileds = new String[] { "Enter genre (press <RETURN> to leave empty):",
+				"Enter # of results to return (press <RETURN> to leave empty)",
+				"specify start date(YYYY-MM-DD) (press <RETURN> to leave empty)",
+				"specify end date (YYYY-MM-DD)(press <RETURN> to leave empty)" };
+		Utilities utility = new Utilities();
+		String[] values = utility.menu_selections(fileds);
+		String genre = values[0];
+		int limit = parseIntwithName(values[1], "Result Limit");
+		String start_date = values[2];
+		String end_date = values[3];
+
+		String sql = "WITH average_ratings AS " 
+				+ "                    (SELECT movie_id, AVG(rating) avg_r "
+				+ "                     FROM review " 
+				+ "                     GROUP BY movie_id "
+				+ "                    ) " 
+				+ "                SELECT title, AR.avg_r AS average_rating "
+				+ "                FROM movie JOIN average_ratings AR "
+				+ "                    ON movie.id = AR.movie_id " 
+				+ "                where date_released > DATE(?) AND date_released < DATE(?) ### "
+				+ "                ORDER BY average_rating DESC ";
+		// if
+		if (!genre.isBlank()) {
+			sql = sql.replace("###", "AND genre=?");
+		} else {
+			sql = sql.replace("###", "");
+		}
+		if (limit != -1) {
+			sql += "   LIMIT ? ";
+		}
+		PreparedStatement stmt = null;
+		ResultSet res = null;
+		try {
+			stmt = conn.prepareStatement(sql);
+			if (start_date.isBlank()) {
+				start_date = "0001-1-1";
+			}
+			if (end_date.isBlank()) {
+				end_date = "9999-1-1";
+			}
+			stmt.setString(1, start_date);
+			stmt.setString(2, end_date);
+			if (!genre.isBlank()) {
+				stmt.setString(3, genre);
+			}
+			if (limit != -1) {
+				if (!genre.isBlank()) {
+					stmt.setInt(4, limit);
+				} else {
+					stmt.setInt(3, limit);
+				}
+			}
+			res = stmt.executeQuery();
+			System.out.println("Name\t\t Average Rating");
+			while (res.next()) {
+				System.out.println(res.getString(1) + " \t\t " + utility.big(res.getDouble(2)));
+			}
+		} catch (SQLException e) {
+			System.out.println("Query " + f_name + " failed,SQL error: ");
+			e.printStackTrace();
+		} catch (Exception e) {
+			System.out.println("Query " + f_name + " failed, class error: ");
+			e.printStackTrace();
+		} finally {
+			try {
+				if (stmt != null)
+					stmt.close();
+				if (res != null)
+					res.close();
+			} catch (SQLException e) {
+				System.out.println("Query " + f_name + " failed,SQL error: ");
+				e.printStackTrace();
+			} // end finally try
+		}
+		System.out.println(utility.as_bold_color("[iii]", "g") + " Query " + f_name + " finished.");
 	}
 
 	/*
@@ -838,18 +1058,201 @@ public class Task {
 	 * number of query results returned.
 	 */
 	public void get_popular_movies(Connection conn) {
+		
+		String f_name = "Get Popular Movies";
+		System.out.println(utility.as_bold_color("[iii]", "g") + f_name + "==>");
+
+		String[] fileds = new String[] { "Enter genre (press <RETURN> to leave empty):",
+				"Enter # of results to return (press <RETURN> to leave empty)",
+				"specify start date(YYYY-MM-DD) (press <RETURN> to leave empty)",
+				"specify end date (YYYY-MM-DD)(press <RETURN> to leave empty)" };
+		Utilities utility = new Utilities();
+		String[] values = utility.menu_selections(fileds);
+		String genre = values[0];
+		int limit = parseIntwithName(values[1], "Result Limit");
+		String start_date = values[2];
+		String end_date = values[3];
+
+		String sql =
+				  "                SELECT M.title, COUNT(*) num_watches "
+				+ "                FROM history H JOIN movie M "
+				+ "                    ON  (M.id = H.movie_id) " 
+				+ "                where watch_date > DATE(?) AND watch_date < DATE(?) ### "
+				+ "                GROUP BY M.id"
+				+ "                ORDER BY COUNT(*) DESC ";
+		// if
+		if (!genre.isBlank()) {
+			sql = sql.replace("###", "AND genre=?");
+		} else {
+			sql = sql.replace("###", "");
+		}
+		if (limit != -1) {
+			sql += "   LIMIT ? ";
+		}
+		PreparedStatement stmt = null;
+		ResultSet res = null;
+		try {
+			stmt = conn.prepareStatement(sql);
+			if (start_date.isBlank()) {
+				start_date = "0001-1-1";
+			}
+			if (end_date.isBlank()) {
+				end_date = "9999-1-1";
+			}
+			stmt.setString(1, start_date);
+			stmt.setString(2, end_date);
+			if (!genre.isBlank()) {
+				stmt.setString(3, genre);
+			}
+			if (limit != -1) {
+				if (!genre.isBlank()) {
+					stmt.setInt(4, limit);
+				} else {
+					stmt.setInt(3, limit);
+				}
+			}
+			res = stmt.executeQuery();
+			System.out.println("Name\t\t Number of Watches");
+			while (res.next()) {
+				System.out.println(res.getString(1) + " \t\t " + utility.big(res.getDouble(2)));
+			}
+		} catch (SQLException e) {
+			System.out.println("Query " + f_name + " failed,SQL error: ");
+			e.printStackTrace();
+		} catch (Exception e) {
+			System.out.println("Query " + f_name + " failed, class error: ");
+			e.printStackTrace();
+		} finally {
+			try {
+				if (stmt != null)
+					stmt.close();
+				if (res != null)
+					res.close();
+			} catch (SQLException e) {
+				System.out.println("Query " + f_name + " failed,SQL error: ");
+				e.printStackTrace();
+			} // end finally try
+		}
+		System.out.println(utility.as_bold_color("[iii]", "g") + " Query " + f_name + " finished.");
+
 	}
 
 	/*
 	 * For a given user id, get the start and end dates of his current subscription.
 	 */
 	public void get_user_current_subscription_window(Connection conn) {
+		String f_name = "Get User's Subscription";
+		System.out.println(utility.as_bold_color("[iii]", "g") + f_name + "==>");
+
+		String[] fileds = new String[] { "User ID" };
+		Utilities utility = new Utilities();
+		String[] values = utility.menu_selections(fileds);
+		int user_id = parseIntwithName(values[0], "User ID");
+		if (user_id == -1) {
+			return;
+		}
+		String sql ="  SELECT"
+				+ "                start_date,"
+				+ "                EXTRACT(MONTH FROM month_length) AS month, "
+				+ "                EXTRACT(YEAR FROM month_length) AS year,"
+				+ "                (start_date + month_length)::date AS end_date,"
+				+ "                name"
+				+ "            FROM"
+				+ "                subscription S JOIN plan P ON (S.plan_name = P.name)"
+				+ "            WHERE"
+				+ "                user_id = ? AND"
+				+ "                start_date <= CURRENT_DATE AND"
+				+ "                start_date + month_length >= CURRENT_DATE";
+		 
+		PreparedStatement stmt = null;
+		ResultSet res = null;
+		try {
+			stmt = conn.prepareStatement(sql);
+			 
+			stmt.setInt(1, user_id);
+			res = stmt.executeQuery();
+			System.out.println("Start Date\t Month \t Year \t End Date \t Name");
+			while (res.next()) {
+				System.out.println(res.getString(1)+"\t"+res.getString(2)+"\t"+res.getString(3)+"\t"+res.getString(4)+"\t"+res.getString(5));
+			}
+		} catch (SQLException e) {
+			System.out.println("Query " + f_name + " failed,SQL error: ");
+			e.printStackTrace();
+		} catch (Exception e) {
+			System.out.println("Query " + f_name + " failed, class error: ");
+			e.printStackTrace();
+		} finally {
+			try {
+				if (stmt != null)
+					stmt.close();
+				if (res != null)
+					res.close();
+			} catch (SQLException e) {
+				System.out.println("Query " + f_name + " failed,SQL error: ");
+				e.printStackTrace();
+			} // end finally try
+		}
+		System.out.println(utility.as_bold_color("[iii]", "g") + " Query " + f_name + " finished.");
+		
 	}
 
 	/*
 	 * Get, for each user, which genre(s) that user is most likely to watch.
 	 */
 	public void get_user_genres(Connection conn) {
+		String f_name = "Get User Genres";
+		System.out.println(utility.as_bold_color("[iii]", "g") + f_name + "==>");
+		String sql =" WITH "
+				+ "                user_genre_counts as "
+				+ "                (SELECT user_id, genre, COUNT(*) c "
+				+ "                 FROM history H "
+				+ "                    JOIN movie M ON H.movie_id = M.id "
+				+ "                 GROUP BY "
+				+ "                    user_id, genre "
+				+ "                ), "
+				+ "                user_genre_max as "
+				+ "                (SELECT user_id, MAX(c) mc "
+				+ "                 FROM user_genre_counts "
+				+ "                 GROUP BY user_id "
+				+ "                ), "
+				+ "                user_genre_res AS "
+				+ "                (SELECT user_id, genre, c "
+				+ "                 FROM user_genre_counts NATURAL JOIN user_genre_max "
+				+ "                 WHERE c = mc\r\n"
+				+ "                 ORDER BY user_id)\r\n"
+				+ "            SELECT user_id, string_agg(genre, ', '), MIN(c) "
+				+ "            FROM user_genre_res "
+				+ "            GROUP BY user_id;";
+		 
+		PreparedStatement stmt = null;
+		ResultSet res = null;
+		try {
+			stmt = conn.prepareStatement(sql);
+			 
+			res = stmt.executeQuery();
+			System.out.println("User ID\t Genre \t Count ");
+			while (res.next()) {
+				System.out.println(res.getString(1)+"\t"+res.getString(2)+"\t"+res.getString(3));
+			}
+		} catch (SQLException e) {
+			System.out.println("Query " + f_name + " failed,SQL error: ");
+			e.printStackTrace();
+		} catch (Exception e) {
+			System.out.println("Query " + f_name + " failed, class error: ");
+			e.printStackTrace();
+		} finally {
+			try {
+				if (stmt != null)
+					stmt.close();
+				if (res != null)
+					res.close();
+			} catch (SQLException e) {
+				System.out.println("Query " + f_name + " failed,SQL error: ");
+				e.printStackTrace();
+			} // end finally try
+		}
+		System.out.println(utility.as_bold_color("[iii]", "g") + " Query " + f_name + " finished.");
+		
 	}
 
 	/*
@@ -962,15 +1365,46 @@ public class Task {
 		}
 	}
 
-	/*
-	 * Set a movie's active status to true, meaning it is actively streaming. The
-	 * movie must already be present in the database. Keep historical records of the
-	 * movie being watched.
-	 */
-	public void relist_movie(Connection conn) {
-	}
 
 	public void remove_user(Connection conn) {
+		String f_name = "Remove User";
+		System.out.println(utility.as_bold_color("[iii]", "g") + f_name + "==>");
+
+		String[] fileds = new String[] { "User ID" };
+		Utilities utility = new Utilities();
+		String[] values = utility.menu_selections(fileds);
+		int user_id = parseIntwithName(values[0], "User ID");
+		if (user_id == -1) {
+			return;
+		}
+		String sql ="DELETE FROM users "
+				+ "WHERE id = ?";
+		
+		PreparedStatement stmt = null;
+		int res = 0;
+		try {
+			stmt = conn.prepareStatement(sql);
+			 
+			stmt.setInt(1, user_id);
+			res = stmt.executeUpdate();
+			System.out.println("User deleted, row deleted:"+res);
+		} catch (SQLException e) {
+			System.out.println("Query " + f_name + " failed,SQL error: ");
+			e.printStackTrace();
+		} catch (Exception e) {
+			System.out.println("Query " + f_name + " failed, class error: ");
+			e.printStackTrace();
+		} finally {
+			try {
+				if (stmt != null)
+					stmt.close();
+			} catch (SQLException e) {
+				System.out.println("Query " + f_name + " failed,SQL error: ");
+				e.printStackTrace();
+			} // end finally try
+		}
+		System.out.println(utility.as_bold_color("[iii]", "g") + f_name + " finished.");
+		
 	}
 
 	public int parseIntwithName(String str, String name) {
