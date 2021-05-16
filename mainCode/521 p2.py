@@ -817,8 +817,8 @@ def sign_user_up_for_plan_today(conn):
             cur.execute(
             """
             INSERT INTO subscription
-                (user_id, plan_name, start_date)
-            VALUES (%s, %s, %s);
+                (user_id, plan_name, start_date, purchased_date)
+            VALUES (%s, %s, %s,CURRENT_DATE);
             """,
                 (id, name, date)
             )
@@ -858,8 +858,8 @@ def sign_user_up_for_future_plan(conn):
             cur.execute(
                 """
             INSERT INTO subscription
-                (user_id, plan_name, start_date)
-            VALUES (%s, %s, %s);
+                (user_id, plan_name, start_date, purchased_date)
+            VALUES (%s, %s, %s, CURRENT_DATE);
             """,
                 (id, name, date)
             )
