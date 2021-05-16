@@ -4,11 +4,20 @@ import java.util.*;
 public class DatabaseConnection {
  
 	Connection conn = null;
-	String url = "jdbc:postgresql://localhost:5432/skynetflix_small";
+	String url = "jdbc:postgresql://localhost:5432/skynetflix_";
 	Properties info; 
  
-	public Connection Connect(String userid) {
+	public Connection Connect(String userid, String database) {
 		System.out.println("Connect to postgreSQL....");
+		if (database.equals("s")){
+			this.url = this.url+"small";
+		}else if (database.equals("b")){
+			this.url = this.url+"big";
+		}else {
+			System.out.println("database "+database+" parameter Invalid. Connect to small database as default.");
+			this.url = this.url+"small";
+		}
+		
 		info = new Properties(); 
 	    info.setProperty("user",userid);  
 	    info.setProperty("password","");

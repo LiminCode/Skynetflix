@@ -756,6 +756,79 @@ public class Task {
 	 * filtering by genre and limiting number of query results returned.
 	 */
 	public void get_busiest_users(Connection conn) {
+		String f_name = "Get busiest users.";
+		System.out.println(utility.as_bold_color("[iii]", "g") + f_name + "==>");
+
+		String[] fileds = new String[] { "Enter genre (press <RETURN> to leave empty):",
+				"Enter # of results to return (press <RETURN> to leave empty)",
+				"specify start date(YYYY-MM-DD) (press <RETURN> to leave empty)",
+				"specify end date (YYYY-MM-DD)(press <RETURN> to leave empty)" };
+		Utilities utility = new Utilities();
+		String[] values = utility.menu_selections(fileds);
+		String genre = values[0];
+		int limit = parseIntwithName(values[1], "Result Limit");
+		String start_date = values[2];
+		String end_date = values[3];
+		String sql = 
+				  "                SELECT user_id, count(*) num_watches "
+				+ "                FROM history H JOIN movie M ON (H.movie_id = M.id) "
+				+ "                where date_released > DATE(?) AND date_released < DATE(?) ### "
+				+ "                GROUP BY user_id ORDER BY COUNT(*) DESC ";
+		
+		// if
+		if (!genre.isBlank()) {
+			sql = sql.replace("###", "AND genre=?");
+		} else {
+			sql = sql.replace("###", "");
+		}
+		if (limit != -1) {
+			sql += "   LIMIT ? ";
+		}
+		PreparedStatement stmt = null;
+		ResultSet res = null;
+		try {
+			stmt = conn.prepareStatement(sql);
+			if (start_date.isBlank()) {
+				start_date = "0001-1-1";
+			}
+			if (end_date.isBlank()) {
+				end_date = "9999-1-1";
+			}
+			stmt.setString(1, start_date);
+			stmt.setString(2, end_date);
+			if (!genre.isBlank()) {
+				stmt.setString(3, genre);
+			}
+			if (limit != -1) {
+				if (!genre.isBlank()) {
+					stmt.setInt(4, limit);
+				} else {
+					stmt.setInt(3, limit);
+				}
+			}
+			res = stmt.executeQuery();
+			System.out.println("History Results:");
+			while (res.next()) {
+				System.out.println("User "+ res.getInt(1) + " has watched " +  res.getInt(2)+ " movies." );
+			}
+		} catch (SQLException e) {
+			System.out.println("Query " + f_name + " failed,SQL error: ");
+			e.printStackTrace();
+		} catch (Exception e) {
+			System.out.println("Query " + f_name + " failed, class error: ");
+			e.printStackTrace();
+		} finally {
+			try {
+				if (stmt != null)
+					stmt.close();
+				if (res != null)
+					res.close();
+			} catch (SQLException e) {
+				System.out.println("Query " + f_name + " failed,SQL error: ");
+				e.printStackTrace();
+			} // end finally try
+		}
+		System.out.println(utility.as_bold_color("[iii]", "g") + " Query " + f_name + " finished.");
 	}
 
 	public void get_highest_grossing_studios(Connection conn) {
