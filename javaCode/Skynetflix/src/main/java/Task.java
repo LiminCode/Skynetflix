@@ -1480,6 +1480,248 @@ public class Task {
 		
 	}
 
+	public void sign_user_up_for_future_plan(Connection conn) {
+		String f_name = "Sign Up for Future Plan";
+		System.out.println(utility.as_bold_color("[iii]", "g") + f_name + "==>");
+
+		String[] fileds = new String[] { "User ID", "Subscription Plan Name","Enter a date past the current date(YYYY-MM-DD)"};
+		Utilities utility = new Utilities();
+		String[] values = utility.menu_selections(fileds);
+		int user_id = 0;
+		try {
+			user_id = Integer.parseInt(values[0]);
+		} catch (Exception e) {
+			System.out.println("Not a valid user id: " + values[0]);
+			return;
+		}
+		String plan_name = values[1]; 
+		String future_date = values[2];
+		String check_sql = "SELECT * FROM subscription S JOIN plan P ON "
+				+ "S.plan_name = P.name "
+				+ "WHERE user_id = ? AND start_date<= DATE(?) AND  start_date+month_length >= DATE(?) ";
+		
+		// check if conflict
+		String insert_sql = "Insert Into subscription (user_id, plan_name, start_date, purchased_date) "
+				+ "values(?,?,DATE(?), CURRENT_DATE)";
+		PreparedStatement statement = null;
+		ResultSet res = null;
+		try {
+			statement = conn.prepareStatement(check_sql);
+			statement.setInt(1, user_id);
+			statement.setString(2, future_date);
+			statement.setString(3, future_date);
+			res = statement.executeQuery();
+			 
+			if (res.next()) {
+				System.out.println(utility.as_color("[!!!]", "r") + "  >>>> Cannot sign up user " + user_id+" for new"
+						+ "subscription loan starting on "+future_date+"; overlaping subscription already exsist.");
+				statement.close();
+				return;
+			}
+			statement = conn.prepareStatement(insert_sql);
+			statement.setInt(1, user_id);
+			statement.setString(2, plan_name);
+			statement.setString(3, future_date);
+			int res_num = statement.executeUpdate();
+			System.out.println("Subscription added, row added:"+res_num);
+		 } catch (SQLException e) {
+			System.out.println("Query " + f_name + " failed,SQL error: ");
+			e.printStackTrace();
+		} catch (Exception e) {
+			System.out.println("Query " + f_name + " failed, class error: ");
+			e.printStackTrace();
+		} finally {
+			try {
+				if (statement != null)
+					statement.close();
+			} catch (SQLException e) {
+				System.out.println("Query " + f_name + " failed,SQL error: ");
+				e.printStackTrace();
+			} // end finally try
+		}
+		System.out.println(utility.as_bold_color("[iii]", "g") + f_name + " finished.");
+		
+	}
+	public void sign_user_up_for_plan_today(Connection conn) {
+		String f_name = "Sign Up for Plan Today";
+		System.out.println(utility.as_bold_color("[iii]", "g") + f_name + "==>");
+
+		String[] fileds = new String[] { "User ID", "Subscription Plan Name" };
+		Utilities utility = new Utilities();
+		String[] values = utility.menu_selections(fileds);
+		int user_id = 0;
+		try {
+			user_id = Integer.parseInt(values[0]);
+		} catch (Exception e) {
+			System.out.println("Not a valid user id: " + values[0]);
+			return;
+		}
+		String plan_name = values[1]; 
+		 
+		String check_sql = "SELECT * FROM subscription S JOIN plan P ON "
+				+ "S.plan_name = P.name "
+				+ "WHERE user_id = ? AND start_date<= CURRENT_DATE AND  start_date+month_length >= CURRENT_DATE ";
+		
+		// check if conflict
+		String insert_sql = "Insert Into subscription (user_id, plan_name, start_date, purchased_date) "
+				+ "values(?,?,CURRENT_DATE, CURRENT_DATE)";
+		PreparedStatement statement = null;
+		ResultSet res = null;
+		try {
+			statement = conn.prepareStatement(check_sql);
+			statement.setInt(1, user_id);
+			res = statement.executeQuery();
+			 
+			if (res.next()) {
+				System.out.println(utility.as_color("[!!!]", "r") + "  >>>> Cannot sign up user " + user_id+" for new"
+						+ "subscription loan starting today: overlaping subscription already exsist.");
+				statement.close();
+				return;
+			}
+			statement = conn.prepareStatement(insert_sql);
+			statement.setInt(1, user_id);
+			statement.setString(2, plan_name);
+			int res_num = statement.executeUpdate();
+			System.out.println("Subscription added, row added:"+res_num);
+		 } catch (SQLException e) {
+			System.out.println("Query " + f_name + " failed,SQL error: ");
+			e.printStackTrace();
+		} catch (Exception e) {
+			System.out.println("Query " + f_name + " failed, class error: ");
+			e.printStackTrace();
+		} finally {
+			try {
+				if (statement != null)
+					statement.close();
+			} catch (SQLException e) {
+				System.out.println("Query " + f_name + " failed,SQL error: ");
+				e.printStackTrace();
+			} // end finally try
+		}
+		System.out.println(utility.as_bold_color("[iii]", "g") + f_name + " finished.");
+		
+	}
+	/*Generate history of users signing up for subscriptions
+    going back some specified # of months
+	 * */
+	public void subscription_history(Connection conn) {
+		String f_name = "Subscription History";
+		System.out.println(utility.as_bold_color("[iii]", "g") + f_name + "==>");
+
+		String[] fileds = new String[] { "enter # of months of history to get (max 120):" };
+		Utilities utility = new Utilities();
+		String[] values = utility.menu_selections(fileds);
+		int number = 0;
+		try {
+			number = Integer.parseInt(values[0]);
+		} catch (Exception e) {
+			System.out.println("Not a valid number: " + values[0]);
+			return;
+		}
+ 
+		 
+		String check_sql = "SELECT "
+				+ "                DATE_PART('year',start_date) AS year, "
+				+ "                DATE_PART('month',start_date) AS month, "
+				+ "                plan_name, "
+				+ "                COUNT(*) "
+				+ "            FROM subscription "
+				+ "            WHERE CURRENT_DATE-start_date <= (30 * ?) "
+				+ "            GROUP BY plan_name, year, month "
+				+ "            ORDER BY year DESC, month DESC, plan_name ASC;";
+		
+		 
+		PreparedStatement statement = null;
+		ResultSet res = null;
+		try {
+			statement = conn.prepareStatement(check_sql);
+			statement.setInt(1, number);
+			res = statement.executeQuery();
+			 
+			System.out.println(" Results:");
+			while (res.next()) {
+				System.out.println("Year: "+ res.getInt(1) + " Month: " +  res.getInt(2)+ " Name: " +  res.getString(3) +" Count: " +  res.getInt(4) );
+			}
+		 } catch (SQLException e) {
+			System.out.println("Query " + f_name + " failed,SQL error: ");
+			e.printStackTrace();
+		} catch (Exception e) {
+			System.out.println("Query " + f_name + " failed, class error: ");
+			e.printStackTrace();
+		} finally {
+			try {
+				if (statement != null)
+					statement.close();
+			} catch (SQLException e) {
+				System.out.println("Query " + f_name + " failed,SQL error: ");
+				e.printStackTrace();
+			} // end finally try
+		}
+		System.out.println(utility.as_bold_color("[iii]", "g") + f_name + " finished.");
+		
+	}
+	/*record a new event when a user watches a movie*/
+	public void track_watch_event(Connection conn) {
+		String f_name = "Add Watch Event";
+		System.out.println(utility.as_bold_color("[iii]", "g") + f_name + "==>");
+
+		String[] fileds = new String[] { "User ID", "Movie ID" };
+		Utilities utility = new Utilities();
+		String[] values = utility.menu_selections(fileds);
+		int user_id = 0;
+		try {
+			user_id = Integer.parseInt(values[0]);
+		} catch (Exception e) {
+			System.out.println("Not a valid user id: " + values[0]);
+			return;
+		}
+		int movie_id = 0;
+		try {
+			movie_id = Integer.parseInt(values[1]);
+		} catch (Exception e) {
+			System.out.println("Not a valid movie id: " + values[1]);
+			return;
+		}
+		fileds = new String[] { "Enter Date Watched(YYYY-MM-DD)"};
+		values = utility.menu_selections(fileds); 
+		String date_watched = values[0];
+		if(date_watched.isBlank()) {
+			System.out.println("Not a valid date: " + date_watched);
+			return;
+		}
+		
+		String check_sql = " INSERT INTO history\r\n"
+				+ "            (user_id,movie_id, watch_date) VALUES (?, ?, DATE(?));";
+		
+		 
+		PreparedStatement statement = null;
+		ResultSet res = null;
+		try {
+			statement = conn.prepareStatement(check_sql);
+			statement.setInt(1, user_id);
+			statement.setInt(2, movie_id);
+			statement.setString(3, date_watched);
+			int res_num = statement.executeUpdate();
+			System.out.println("Watch Event added, row added:"+res_num);
+			
+		 } catch (SQLException e) {
+			System.out.println("Query " + f_name + " failed,SQL error: ");
+			e.printStackTrace();
+		} catch (Exception e) {
+			System.out.println("Query " + f_name + " failed, class error: ");
+			e.printStackTrace();
+		} finally {
+			try {
+				if (statement != null)
+					statement.close();
+			} catch (SQLException e) {
+				System.out.println("Query " + f_name + " failed,SQL error: ");
+				e.printStackTrace();
+			} // end finally try
+		}
+		System.out.println(utility.as_bold_color("[iii]", "g") + f_name + " finished.");
+		
+	}
 	public int parseIntwithName(String str, String name) {
 		int re = 0;
 		try {
