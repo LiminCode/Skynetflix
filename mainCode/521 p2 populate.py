@@ -968,9 +968,9 @@ if __name__ == '__main__':
 		dbname="skynetflix_large", user=user)
 	
 	statements = (
-		"SELECT setval('users_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM users),false);"
-		"SELECT setval('movie_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM movie),false);"
-		"SELECT setval('actor_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM actor),false);"
+		"SELECT setval('users_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM users),false);",
+		"SELECT setval('movie_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM movie),false);",
+		"SELECT setval('actor_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM actor),false);",
 		"SELECT setval('director_id_seq',(SELECT COALESCE(MAX(id)+1,0) FROM director),false);"
 	)
 	with conn.cursor() as cur:
