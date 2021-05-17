@@ -959,6 +959,8 @@ def remove_user(conn):
 
 
 def add_movie(conn, *, id_parse=ACTOR_ID_PARSE, info_cap=MAX_INFO_SIZE):
+    """Add a new movie to the database. Movie id generated automatically.
+    Adding actors and a summary are optional."""
     print('adding new movie')
     printc('b',
            '** Note ** : if release time is left blank, current date will be assumed. '
@@ -1156,6 +1158,7 @@ if __name__ == '__main__':
         try:
             for s in statements:
                 cur.execute(s)
+            conn.commit()
         except Exception as e:
             print('setval statements: exception:',repr(e))
             conn.rollback()

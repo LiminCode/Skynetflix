@@ -312,6 +312,8 @@ def _populate_history_user_choice(user, movies_dates, m, n, history_insert_list,
 	#         based on the history table;
 	#     the two-way dependency is unnecessarily complex
 	#         for this application
+	print('\x1b[2K\r',flush=True,end='')
+	print(f'generating user choice for user {user}',flush=True,end='')
 	choice = {
 		# the set comprehension ensures any given movie can be watched
 		#     at most once on a given day, as stated above
@@ -336,7 +338,7 @@ def _populate_history_user_choice(user, movies_dates, m, n, history_insert_list,
 	}
 # 	is_finished = np.random.randint(2, size = len(choice), dtype=bool).tolist()
 	is_finished = np.random.choice(tf, size = len(choice), replace=True).tolist()
-	history_insert_list.extend((*c, f) for c,f in zip(choice, is_finished))
+	return ((*c, f) for c,f in zip(choice, is_finished))
 
 def populate_history(conn):
 	with conn.cursor() as cur:
@@ -376,14 +378,15 @@ def populate_history(conn):
 # 	print('users:')
 # 	print(users)
 	
-	deque( # consumes the whole iterable, but much faster than Python for-loop
+	history_insert_list = list(it.chain.from_iterable(
 		(_populate_history_user_choice(user, movies_dates, m, n,
-		 	history_insert_list, today) for user in users
-		),
-		maxlen=0
-	)
+		 	history_insert_list, today) for user in users)
+		))
 	
-	print(f'history_insert_list: {len(history_insert_list)} entries to insert:')
+	print('\x1b[2K\r',flush=True,end='')
+	print('\n')
+	
+	print(f'history_insert_list: {len(history_insert_list)} entries to insert')
 	
 # 	print('history_insert_list: first 3 entries to insert:',history_insert_list[:3])
 	with conn.cursor() as cur:
@@ -977,6 +980,7 @@ if __name__ == '__main__':
 		try:
 			for s in statements:
 				cur.execute(s)
+			conn.commit()
 		except Exception as e:
 			print('setval statements: exception:',repr(e))
 			conn.rollback()
