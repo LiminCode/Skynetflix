@@ -296,6 +296,8 @@ def pluralize(n, kind):
 
 
 def get_highest_rated_actors(conn, *, fields=PRIMARY_FIELDS):
+    """Get the actors with the highest average rating across
+    the movies that feature them."""
     where = []
     values = []
     f = {f: i for f, i in zip(fields, menu_selections(*fields))}
@@ -342,6 +344,8 @@ def get_highest_rated_actors(conn, *, fields=PRIMARY_FIELDS):
 #         + Calculate a director's rating as the average rating across all the movies he directed
 
 def get_highest_rated_directors(conn, *, fields=PRIMARY_FIELDS):
+    """Get the directors with the highest average rating across
+    the movies that they directed."""
     where = []
     values = []
     f = {f: i for f, i in zip(fields, menu_selections(*fields))}
@@ -416,7 +420,7 @@ def get_popular_movies(conn, *, fields=PRIMARY_FIELDS):
 
 #     Which users watch the most movies (of a certain genre) in a given time frame?
 def get_busiest_users(conn, *, fields=PRIMARY_FIELDS):
-    """Get the most busiest users in a certain time frame, optionally
+    """Get the busiest users in a certain time frame, optionally
     filtering by genre and limiting number of query results returned."""
     where = []
     values = []
@@ -735,7 +739,8 @@ def get_highest_grossing_studios(conn):
 def leave_a_review(conn):
     """Leave a review for a particular user on a particular movie.
     If the user has already reviewed this movie, prompt the user
-    to confirm that he wants to overwrite his previous review."""
+    to confirm that he wants to overwrite his previous review.
+    The user and movie must already exist."""
 
     user_id, movie_id, rating, review = menu_selections(
         'user id', 'movie id', 'rating (integer from 0-100 inclusive)',
@@ -745,6 +750,16 @@ def leave_a_review(conn):
 
     with conn.cursor() as cur:
         try:
+            cur.execute("select id from users where id=%s;", user_id)
+            if next(cur) is None:
+            	printc('r',f'user {user_id} does not exist; aborting')
+            	return
+            
+            cur.execute("select id from movie where id=%s;", movie_id)
+            if next(cur) is None:
+            	printc('r',f'movie {movie_id} does not exist; aborting')
+            	return
+            
             cur.execute(
             """
             SELECT user_id,movie_id
@@ -787,11 +802,24 @@ def leave_a_review(conn):
 
 
 def sign_user_up_for_plan_today(conn):
+    """Sign a user up for a plan that starts today. Requires that
+    an existing user and plan name are entered, and that the user does
+    not have a subscription currently in progress."""
+    
     id, name = menu_selections('user id', 'subscription plan name')
     date = dt.date.today()
 
     with conn.cursor() as cur:
         try:
+            cur.execute('select id from users where id=%s;',id)
+            if next(cur) is None:
+            	printc('r',f'user {user_id} does not exist; aborting')
+            	return
+            cur.execute('select name from plan where name=%s;',name)
+            if next(cur) is None:
+            	printc('r',f'plan {name} does not exist; aborting')
+            	return
+            
             cur.execute(
             """
             SELECT *
@@ -827,12 +855,25 @@ def sign_user_up_for_plan_today(conn):
 
 
 def sign_user_up_for_future_plan(conn):
+    """Sign a user up for a plan that starts at some future date. Requires that
+    an existing user and plan name are entered, and that the user does
+    not have a subscription overlapping with that date."""
+    
     id, name = menu_selections('user id', 'subscription plan name')
     date = custom_select(
         "Enter a date past the current date", get_future_date)[1]
 
     with conn.cursor() as cur:
         try:
+            cur.execute('select id from users where id=%s;',id)
+            if next(cur) is None:
+            	printc('r',f'user {user_id} does not exist; aborting')
+            	return
+            cur.execute('select name from plan where name=%s;',name)
+            if next(cur) is None:
+            	printc('r',f'plan {name} does not exist; aborting')
+            	return
+            
             cur.execute(
             """
             SELECT *
@@ -870,6 +911,8 @@ def sign_user_up_for_future_plan(conn):
 
 
 def add_user(conn):
+    """Add a new user to the system. Only checks performed are on input lengths."""
+    
     values = menu_selections(
         'first name', 'last name',
         'email', 'phone', 'password'
@@ -896,6 +939,7 @@ def add_user(conn):
 
 
 def remove_user(conn):
+    """Remove a user form the system by specifying his id."""
     id = menu_selections('user id')
 
     with conn.cursor() as cur:
@@ -977,6 +1021,7 @@ def add_movie(conn, *, id_parse=ACTOR_ID_PARSE, info_cap=MAX_INFO_SIZE):
 
 
 def add_actors_to_movie(conn, *, id_parse=ACTOR_ID_PARSE):
+    """Specify actors that starred in a given movie."""
     printc('b',
            '** Note ** : To enter actors, provide each actor\'s id #, space-separated. '
            'If the actor is a main actor, enter the actor id with a * '
@@ -1017,6 +1062,7 @@ def add_actors_to_movie(conn, *, id_parse=ACTOR_ID_PARSE):
 
 
 def track_watch_event(conn, *, fields=('user id', 'movie id', 'user finished movie? (T/F)')):
+    """Add a new history event to the database. The date watched is recorded as today."""
     u, m, f = menu_selections(*fields)
     f = f[0].lower()
     if f not in ('t','f'):

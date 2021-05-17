@@ -383,6 +383,8 @@ def populate_history(conn):
 		maxlen=0
 	)
 	
+	print(f'history_insert_list: {len(history_insert_list)} entries to insert:')
+	
 # 	print('history_insert_list: first 3 entries to insert:',history_insert_list[:3])
 	with conn.cursor() as cur:
 		try:
