@@ -2,6 +2,7 @@ import sys
 import itertools as it
 import datetime as dt
 from collections import deque
+import time
 
 import psycopg2
 from psycopg2 import ProgrammingError, IntegrityError
@@ -10,6 +11,39 @@ from psycopg2.extras import execute_batch
 import numpy as np
 
 import platform
+
+from threading import Thread
+
+def update_progress_target(conn, table, *, insert_list=None, count=None,
+					_s=it.cycle(('/','--','\\','|','/','|','\\')), sleep=time.sleep):
+	if insert_list is not None:
+		if count is not None:
+			raise ValueError('provide either `insert_list` or `count`, not both')
+		count = len(insert_list)
+	if count is None:
+		raise ValueError('provide one of `insert_list` or `count`')
+	
+	time.sleep(2)
+	
+	with conn.cursor() as cur:
+		try:
+			while True:
+				cur.execute(f"select COUNT(*) FROM {table};")
+				c = next(cur)[0]
+				print('\x1b[2K\r',flush=True,end='')
+				print(f'    {next(_s)} {c} entries in table `{table}`',flush=True,end='')
+				if c==count:
+					break
+				sleep(.5)
+			print()
+		except Exception as e:
+			pass
+
+def update_progress(*a, **kw):
+	try:
+		Thread(target=update_progress_target, args=a, kwargs=k).start()
+	except:
+		pass
 
 # more portable implementation might use a pypi packaged
 # but this suffices for now
@@ -115,7 +149,7 @@ def populate_act(conn):
 	]
 	
 	# simplifying assumption: each movie has one main actor
-	main = [(True,)+(False,)*(len(a)-1) for a in actor_ids_per_movie]
+	main = [('T',)+('F',)*(len(a)-1) for a in actor_ids_per_movie]
 	role = [tuple(f'role {i}' for i,id in enumerate(a,1)) for a in actor_ids_per_movie]
 	act_insert_list = [
 		(m,*i)
@@ -265,7 +299,8 @@ create table history
 );
 """
 
-def _populate_history_user_choice(user, movies_dates, m, n, history_insert_list, today):
+def _populate_history_user_choice(user, movies_dates, m, n, history_insert_list, today,
+								  *, tf=np.array(['T','F'])):
 	
 	# this is the complete history of movies for this user
 	#
@@ -299,7 +334,8 @@ def _populate_history_user_choice(user, movies_dates, m, n, history_insert_list,
 								  size = np.random.randint(1,n),
 								  replace = True)
 	}
-	is_finished = np.random.randint(2, size = len(choice), dtype=bool).tolist()
+# 	is_finished = np.random.randint(2, size = len(choice), dtype=bool).tolist()
+	is_finished = np.random.choice(tf, size = len(choice), replace=True).tolist()
 	history_insert_list.extend((*c, f) for c,f in zip(choice, is_finished))
 
 def populate_history(conn):
@@ -885,6 +921,7 @@ def populate_users(conn):
 	
 	with conn.cursor() as cur:
 		try:
+			update_progress(conn, 'users', insert_list = user_insert_list)
 			execute_batch(cur,
 			"""
 			INSERT INTO users
@@ -929,10 +966,10 @@ if __name__ == '__main__':
 		dbname="skynetflix_large", user=user)
 	
 	statements = (
-		"select setval('users_id_seq',(SELECT MAX(id) FROM users)+1,false);"
-		"select setval('movie_id_seq',(SELECT MAX(id) FROM movie)+1,false);"
-		"select setval('actor_id_seq',(SELECT MAX(id) FROM actor)+1,false);"
-		"select setval('director_id_seq',(SELECT MAX(id) FROM director)+1,false);"
+		"select setval('users_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM users),false);"
+		"select setval('movie_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM movie),false);"
+		"select setval('actor_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM actor),false);"
+		"select setval('director_id_seq',(SELECT COALESCE(MAX(id)+1,0) FROM director),false);"
 	)
 	with conn.cursor() as cur:
 		try:

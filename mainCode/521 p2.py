@@ -1097,11 +1097,30 @@ if __name__ == '__main__':
         host='localhost',
         port=connect_port
     )
-    cur = conn.cursor()
     
     ################
     
-    
+	
+	statements = (
+		"select setval('users_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM users),false);"
+		"select setval('movie_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM movie),false);"
+		"select setval('actor_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM actor),false);"
+		"select setval('director_id_seq',(SELECT COALESCE(MAX(id)+1,0) FROM director),false);"
+	)
+	with conn.cursor() as cur:
+		try:
+			for s in statements:
+				cur.execute(s)
+		except Exception as e:
+			print('setval statements: exception:',repr(e))
+			conn.rollback()
+			print('setval statements failed to execute, exiting program')
+			conn.close()
+			sys.exit()
+     
+     del statements
+    ################
+   
     
     
     conn.autocommit = True  # as recommended by documentation
