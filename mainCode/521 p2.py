@@ -738,7 +738,7 @@ def leave_a_review(conn):
     to confirm that he wants to overwrite his previous review."""
 
     user_id, movie_id, rating, review = menu_selections(
-        'user id', 'movie id', 'rating (integer from 1-5 inclusive)',
+        'user id', 'movie id', 'rating (integer from 0-100 inclusive)',
         'review content (max 256 chars)'
     )
     date = dt.date.today()
@@ -757,7 +757,7 @@ def leave_a_review(conn):
                 cur.execute(
                     """
                 INSERT INTO review
-                    (user_id, movie_id, date, rating, content)
+                    (user_id, movie_id, review_date, rating, content)
                 VALUES (%s, %s, %s, %s, %s);
                 """,
                     (user_id, movie_id, date, rating, review)
@@ -847,7 +847,7 @@ def sign_user_up_for_future_plan(conn):
             if next(cur, None) is not None:
                 raise ValueError(
                     f'cannot sign up user {id} for new subscription plan starting on {date}; '
-                    'that user\'s has an overalpping subscription with that date'
+                    'that user has an overalpping subscription with that date'
                 )
         except Exception as e:
             print('sign_user_up_for_plan_today: error:', repr(e))
@@ -871,22 +871,22 @@ def sign_user_up_for_future_plan(conn):
 
 def add_user(conn):
     values = menu_selections(
-        'first name', 'last name', 'email', 'phone',
-        'pwd', 'any additional info [{info_cap} chars max]\0'
+        'first name', 'last name',
+        'email', 'phone', 'password'
     )
 
-    date = dt.datetime.now()
+#     date = dt.datetime.now() # not used
 
     with conn.cursor() as cur:
         try:
             cur.execute(
                 """
             INSERT INTO users
-                (first_name, last_name, email, phone, pwd, info, join_time)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                (first_name, last_name, email, phone_number, password)
+            VALUES (%s, %s, %s, %s, %s)
             RETURNING id;
             """,
-                values+(date,)
+                values #+ (date,)
             )
             printc('g', f'added user {cur.fetchone()[0]}')
         except Exception as e:
@@ -922,15 +922,23 @@ def add_movie(conn, *, id_parse=ACTOR_ID_PARSE, info_cap=MAX_INFO_SIZE):
            'not required, but a director id is. If the actor is a main actor, '
            'enter the actor id with a * at its end (without space), e.g. 12345*.'
            )
-    title, url, director_id, actors, info = menu_selections(
-        'title', 'url', 'director id', 'actor ids\0',
-        f'any additional info [{info_cap} chars max]\0'
+    title, genre, url, rating, budget, gross_income, director_id, studio, actors, summary = menu_selections(
+        'title', 'genre', 'url (at most 100 chars)', 'rating (e.g. G, PG-13)',
+        'budget ($)', 'gross revenue($)', 'director id', 'studio (at most 20 chars)',
+        'actor ids\0', f'additional info/summary [{info_cap} chars max]\0'
     )
     info = truncate(info, info_cap)
-    date = custom_select(
-        "Enter release date (empty field sets date to today)", get_date)[1]
-    if not date:
-        date = dt.date.today()
+    # just take the date as today
+#     date = custom_select(
+#         "Enter release date (empty field sets date to today)", get_date)[1]
+#     if not date:
+#         date = dt.date.today()
+    
+    actors, is_main = zip(*(
+    	actor_id.groups() for actor_id in id_parse.finditer(actors)
+    ))
+    roles = tuple(truncate(input(f'enter role for actor {a} (at most 50 chars): '),50) for a in actors)
+    
 
     conn.autocommit = False
     with conn.cursor() as cur:
@@ -940,31 +948,20 @@ def add_movie(conn, *, id_parse=ACTOR_ID_PARSE, info_cap=MAX_INFO_SIZE):
             cur.execute(
             """
             INSERT INTO movies
-                (title, url, director_id, date_released, info)
-            VALUES (%s, %s, %s, %s, %s) RETURNING id;""",
-                (title, url, director_id, date, info)
+                (title, genre, url, rating, budget, gross_income, director_id, studio, summary, date_released)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_DATE) RETURNING id;""",
+                (title, genre, url, rating, budget, gross_income, director_id, studio, info)
             )
             movie_id = cur.fetchone()[0]
             printc('g', f'movie {title} inserted with id {movie_id}')
 
-            for actor_id in id_parse.finditer(actors):
-                actor_id, is_main = actor_id.groups()
-                if is_main:
-                    cur.execute(
-                    """
-                    INSERT INTO act
-                        (actor_id, movie_id, if_main)
-                    VALUES (%s, %s, %s);""",
-                        (actor_id, movie_id, 'true')
-                    )
-                else:
-                    cur.execute(
-                    """
-                    INSERT INTO act
-                        (actor_id, movie_id)
-                    VALUES (%s, %s);""",
-                        (actor_id, movie_id)
-                    )
+			execute_batch(cur,
+			"""
+			INSERT INTO act
+				(actor_id, movie_id, if_main, role)
+			VALUES (%s, %s, %s, %s);""",
+				list(zip(actors, [movie_id]*len(actors), is_main, roles))
+			)
 
                 printc(
                     'g', f'{"main "*is_main}actor {id} inserted on movie {movie_id}')
@@ -972,9 +969,7 @@ def add_movie(conn, *, id_parse=ACTOR_ID_PARSE, info_cap=MAX_INFO_SIZE):
         except Exception as e:
             print('add_movie: error:', repr(e))
             conn.rollback()
-            # printc('r', ...)
-            # make sure ROLLBACK if failure
-            ...
+    
     conn.autocommit = True
 
 
@@ -1021,8 +1016,12 @@ def add_actors_to_movie(conn, *, id_parse=ACTOR_ID_PARSE):
 # record a new event when a user watches a movie
 
 
-def track_watch_event(conn, *, fields=('user id', 'movie id')):
-    u, m = menu_selections(*fields)
+def track_watch_event(conn, *, fields=('user id', 'movie id', 'user finished movie? (T/F)')):
+    u, m, f = menu_selections(*fields)
+    f = f[0].lower()
+    if f not in ('t','f'):
+    	printc('r',"input for user finished movie not understood: provide one of 't' or 'f'; aborting")
+    	return
     d = custom_select("Enter date watched:",
                       partial(get_date, allow_empty=False),
                       'invalid date')[1]
@@ -1031,8 +1030,8 @@ def track_watch_event(conn, *, fields=('user id', 'movie id')):
             cur.execute(
             """
             INSERT INTO history
-            (user_id,movie_id, <date>) VALUES (%s, %s, %s);""",
-                (u, m, d)
+            (user_id, movie_id, watch_date, is_finished) VALUES (%s, %s, %s, %s);""",
+                (u, m, dt.date.today(), f)
             )
             print('operation successful')  # "<PRINT SUCCESS>"
         except Exception as e:
