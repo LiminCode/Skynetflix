@@ -750,15 +750,15 @@ def leave_a_review(conn):
 
     with conn.cursor() as cur:
         try:
-            cur.execute("select id from users where id=%s;", user_id)
+            cur.execute("SELECT id from users where id=%s;", user_id)
             if next(cur) is None:
-            	printc('r',f'user {user_id} does not exist; aborting')
-            	return
+                printc('r',f'user {user_id} does not exist; aborting')
+                return
             
-            cur.execute("select id from movie where id=%s;", movie_id)
+            cur.execute("SELECT id from movie where id=%s;", movie_id)
             if next(cur) is None:
-            	printc('r',f'movie {movie_id} does not exist; aborting')
-            	return
+                printc('r',f'movie {movie_id} does not exist; aborting')
+                return
             
             cur.execute(
             """
@@ -811,14 +811,14 @@ def sign_user_up_for_plan_today(conn):
 
     with conn.cursor() as cur:
         try:
-            cur.execute('select id from users where id=%s;',id)
+            cur.execute('SELECT id from users where id=%s;',id)
             if next(cur) is None:
-            	printc('r',f'user {user_id} does not exist; aborting')
-            	return
-            cur.execute('select name from plan where name=%s;',name)
+                printc('r',f'user {user_id} does not exist; aborting')
+                return
+            cur.execute('SELECT name from plan where name=%s;',name)
             if next(cur) is None:
-            	printc('r',f'plan {name} does not exist; aborting')
-            	return
+                printc('r',f'plan {name} does not exist; aborting')
+                return
             
             cur.execute(
             """
@@ -865,14 +865,14 @@ def sign_user_up_for_future_plan(conn):
 
     with conn.cursor() as cur:
         try:
-            cur.execute('select id from users where id=%s;',id)
+            cur.execute('SELECT id from users where id=%s;',id)
             if next(cur) is None:
-            	printc('r',f'user {user_id} does not exist; aborting')
-            	return
-            cur.execute('select name from plan where name=%s;',name)
+                printc('r',f'user {user_id} does not exist; aborting')
+                return
+            cur.execute('SELECT name from plan where name=%s;',name)
             if next(cur) is None:
-            	printc('r',f'plan {name} does not exist; aborting')
-            	return
+                printc('r',f'plan {name} does not exist; aborting')
+                return
             
             cur.execute(
             """
@@ -979,7 +979,7 @@ def add_movie(conn, *, id_parse=ACTOR_ID_PARSE, info_cap=MAX_INFO_SIZE):
 #         date = dt.date.today()
     
     actors, is_main = zip(*(
-    	actor_id.groups() for actor_id in id_parse.finditer(actors)
+        actor_id.groups() for actor_id in id_parse.finditer(actors)
     ))
     roles = tuple(truncate(input(f'enter role for actor {a} (at most 50 chars): '),50) for a in actors)
     
@@ -999,16 +999,15 @@ def add_movie(conn, *, id_parse=ACTOR_ID_PARSE, info_cap=MAX_INFO_SIZE):
             movie_id = cur.fetchone()[0]
             printc('g', f'movie {title} inserted with id {movie_id}')
 
-			execute_batch(cur,
-			"""
-			INSERT INTO act
-				(actor_id, movie_id, if_main, role)
-			VALUES (%s, %s, %s, %s);""",
-				list(zip(actors, [movie_id]*len(actors), is_main, roles))
-			)
+            execute_batch(cur,
+            """
+            INSERT INTO act
+                (actor_id, movie_id, if_main, role)
+            VALUES (%s, %s, %s, %s);""",
+                list(zip(actors, [movie_id]*len(actors), is_main, roles))
+            )
 
-                printc(
-                    'g', f'{"main "*is_main}actor {id} inserted on movie {movie_id}')
+            printc('g', f'{"main "*is_main}actor {id} inserted on movie {movie_id}')
             conn.commit()
         except Exception as e:
             print('add_movie: error:', repr(e))
@@ -1066,8 +1065,8 @@ def track_watch_event(conn, *, fields=('user id', 'movie id', 'user finished mov
     u, m, f = menu_selections(*fields)
     f = f[0].lower()
     if f not in ('t','f'):
-    	printc('r',"input for user finished movie not understood: provide one of 't' or 'f'; aborting")
-    	return
+        printc('r',"input for user finished movie not understood: provide one of 't' or 'f'; aborting")
+        return
     d = custom_select("Enter date watched:",
                       partial(get_date, allow_empty=False),
                       'invalid date')[1]
@@ -1146,25 +1145,25 @@ if __name__ == '__main__':
     
     ################
     
-	
-	statements = (
-		"select setval('users_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM users),false);"
-		"select setval('movie_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM movie),false);"
-		"select setval('actor_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM actor),false);"
-		"select setval('director_id_seq',(SELECT COALESCE(MAX(id)+1,0) FROM director),false);"
-	)
-	with conn.cursor() as cur:
-		try:
-			for s in statements:
-				cur.execute(s)
-		except Exception as e:
-			print('setval statements: exception:',repr(e))
-			conn.rollback()
-			print('setval statements failed to execute, exiting program')
-			conn.close()
-			sys.exit()
+    
+    statements = (
+        "SELECT setval('users_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM users),false);"
+        "SELECT setval('movie_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM movie),false);"
+        "SELECT setval('actor_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM actor),false);"
+        "SELECT setval('director_id_seq',(SELECT COALESCE(MAX(id)+1,0) FROM director),false);"
+    )
+    with conn.cursor() as cur:
+        try:
+            for s in statements:
+                cur.execute(s)
+        except Exception as e:
+            print('setval statements: exception:',repr(e))
+            conn.rollback()
+            print('setval statements failed to execute, exiting program')
+            conn.close()
+            sys.exit()
      
-     del statements
+    del statements
     ################
    
     

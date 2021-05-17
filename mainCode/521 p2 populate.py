@@ -28,7 +28,7 @@ def update_progress_target(conn, table, *, insert_list=None, count=None,
 	with conn.cursor() as cur:
 		try:
 			while True:
-				cur.execute(f"select COUNT(*) FROM {table};")
+				cur.execute(f"SELECT COUNT(*) FROM {table};")
 				c = next(cur)[0]
 				print('\x1b[2K\r',flush=True,end='')
 				print(f'    {next(_s)} {c} entries in table `{table}`',flush=True,end='')
@@ -968,10 +968,10 @@ if __name__ == '__main__':
 		dbname="skynetflix_large", user=user)
 	
 	statements = (
-		"select setval('users_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM users),false);"
-		"select setval('movie_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM movie),false);"
-		"select setval('actor_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM actor),false);"
-		"select setval('director_id_seq',(SELECT COALESCE(MAX(id)+1,0) FROM director),false);"
+		"SELECT setval('users_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM users),false);"
+		"SELECT setval('movie_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM movie),false);"
+		"SELECT setval('actor_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM actor),false);"
+		"SELECT setval('director_id_seq',(SELECT COALESCE(MAX(id)+1,0) FROM director),false);"
 	)
 	with conn.cursor() as cur:
 		try:
