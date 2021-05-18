@@ -759,7 +759,7 @@ public class Task {
 		String f_name = "Get busiest users.";
 		System.out.println(utility.as_bold_color("[iii]", "g") + f_name + "==>");
 
-		String[] fileds = new String[] { "Enter genre (press <RETURN> to leave empty):",
+		String[] fileds = new String[] { "Enter genre (press <RETURN> to leave empty)",
 				"Enter # of results to return (press <RETURN> to leave empty)",
 				"specify start date(YYYY-MM-DD) (press <RETURN> to leave empty)",
 				"specify end date (YYYY-MM-DD)(press <RETURN> to leave empty)" };

@@ -19,11 +19,11 @@ public class Skynetflix {
 		// connect database
 		Scanner scan = new Scanner(System.in);
 		System.out.println("\033[32;4m" + "Enter database user:" + "\033[0m");
-		// String user = scan.next();
-		String user = "lwang24"; // speed up debug
+		 String user = scan.nextLine();
+		//String user = "lwang24"; // speed up debug
 		System.out.println("\033[32;4m" + "Which Database?(enter s for small, b for big):" + "\033[0m");
-		// String database = scan.next();
-		String database = "s";
+		String database = scan.nextLine();
+		//String database = "s";
 		
 		
 		DatabaseConnection dbConn = new DatabaseConnection();
