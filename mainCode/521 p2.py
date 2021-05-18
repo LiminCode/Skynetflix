@@ -1030,7 +1030,7 @@ def add_actors_to_movie(conn, *, id_parse=ACTOR_ID_PARSE):
            )
     movie_id, actors = menu_selections('movie id', 'actor ids')
     actors, main_values = zip(*(a.groups() for a in id_parse.finditer(actors)))
-    main_values = tuple(map(bool, main_values))
+    main_values = tuple('T' if m else 'F' for m in main_values)
     
     printc('b','provide roles for each actor specified (max 50 chars per role):')
     roles = (input(f'    role for actor {a}:  ') for a in actors)
@@ -1152,7 +1152,7 @@ if __name__ == '__main__':
         "SELECT setval('users_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM users),false);",
         "SELECT setval('movie_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM movie),false);",
         "SELECT setval('actor_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM actor),false);",
-        "SELECT setval('director_id_seq',(SELECT COALESCE(MAX(id)+1,0) FROM director),false);"
+        "SELECT setval('director_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM director),false);"
     )
     with conn.cursor() as cur:
         try:

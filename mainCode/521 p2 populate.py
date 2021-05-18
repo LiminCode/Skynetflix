@@ -11,11 +11,13 @@ from psycopg2.extras import execute_batch
 import numpy as np
 
 import platform
+from math import ceil
 
 from threading import Thread
 
-def update_progress_target(conn, table, *, insert_list=None, count=None,
+def update_progress_target(conn, table, initial_count, *, insert_list=None, count=None,
 					_s=it.cycle(('/','--','\\','|','/','|','\\')), sleep=time.sleep):
+# 	print('update_progress_target called:',conn,table)
 	if insert_list is not None:
 		if count is not None:
 			raise ValueError('provide either `insert_list` or `count`, not both')
@@ -25,25 +27,31 @@ def update_progress_target(conn, table, *, insert_list=None, count=None,
 	
 	time.sleep(2)
 	
+	target = initial_count + count
+	
+	print()
+	s=''
 	with conn.cursor() as cur:
 		try:
 			while True:
 				cur.execute(f"SELECT COUNT(*) FROM {table};")
 				c = next(cur)[0]
-				print('\x1b[2K\r',flush=True,end='')
-				print(f'    {next(_s)} {c} entries in table `{table}`',flush=True,end='')
-				if c==count:
+				t = f'    {next(_s)} {c} entries in table `{table}`'
+				if c==target:
 					break
-				sleep(.5)
+				else:
+					print((f'\033[A\r{t}').ljust(len(s)))
+					s = t
+					sleep(.3)
 			print()
 		except Exception as e:
 			pass
 
 def update_progress(*a, **kw):
 	try:
-		Thread(target=update_progress_target, args=a, kwargs=k).start()
-	except:
-		pass
+		Thread(target=update_progress_target, args=a, kwargs=kw).start()
+	except Exception as e:
+		printc('r',f'update progress error: {repr(e)}')
 
 # more portable implementation might use a pypi packaged
 # but this suffices for now
@@ -121,6 +129,7 @@ create table act
 );
 """
 def populate_act(conn):
+	print('populate: `act`...', end=' ', flush=True)
 	with conn.cursor() as cur:
 		try:
 			cur.execute("SELECT id FROM actor;")
@@ -191,6 +200,7 @@ create table actor
 );
 """
 def populate_actor(conn, *, count = 500):
+	print('populate: `actor`...', end=' ', flush=True)
 	actors = range(count)
 	
 	# keep things simple here
@@ -214,6 +224,7 @@ def populate_actor(conn, *, count = 500):
 			actor_insert_list
 			)
 			conn.commit()
+			printc('g', f'successfully inserted {count} actors')
 		except Exception as e:
 			print('populate actor: insert actors: exception occurred:',repr(e))
 			conn.rollback()
@@ -230,6 +241,7 @@ create table director
 );
 """
 def populate_director(conn, *, count = 500):
+	print('populate: `director`...', end=' ', flush=True)
 	directors = range(count)
 	
 	# keep things simple here
@@ -251,6 +263,7 @@ def populate_director(conn, *, count = 500):
 			director_insert_list
 			)
 			conn.commit()
+			printc('g', f'successfully inserted {count} directors')
 		except Exception as e:
 			print('populate director: insert directors: exception occurred:',repr(e))
 			conn.rollback()
@@ -341,6 +354,7 @@ def _populate_history_user_choice(user, movies_dates, m, n, history_insert_list,
 	return ((*c, f) for c,f in zip(choice, is_finished))
 
 def populate_history(conn):
+	print('populate: `history`...', end=' ', flush=True)
 	with conn.cursor() as cur:
 		try:
 			cur.execute(
@@ -388,9 +402,11 @@ def populate_history(conn):
 	
 	print(f'history_insert_list: {len(history_insert_list)} entries to insert')
 	
-# 	print('history_insert_list: first 3 entries to insert:',history_insert_list[:3])
 	with conn.cursor() as cur:
 		try:
+			cur.execute("SELECT COUNT(*) FROM history;")
+			update_progress(conn, 'history', next(cur)[0], insert_list=history_insert_list)
+			
 			execute_batch(cur,
 			"""
 			INSERT INTO history
@@ -398,11 +414,13 @@ def populate_history(conn):
 			VALUES (%s, %s, %s, %s);
 			""",
 			history_insert_list,
-			page_size = 1000
+			page_size = 100000
 			)
-			printc('successfully inserted {len(history_insert_list)} history events')
+			conn.commit()
+			printc('g',f'successfully inserted {len(history_insert_list)} history events')
 		except Exception as e:
 			print('populate history: insert history: exception:',repr(e))
+			conn.rollback()
 
 # movie
 """
@@ -428,9 +446,8 @@ create table movie
 );
 """
 
-####  THIS HAS TO BE UPDATED
-
 def populate_movie(conn):
+	print('populate: `movie`...', end=' ', flush=True)
 	with conn.cursor() as cur:
 		try:
 			cur.execute("SELECT name,date_founded FROM studio;")
@@ -531,6 +548,7 @@ def populate_movie(conn):
 				movie_insert_list
 			)
 			conn.commit()
+			printc('g',f'successfully inserted {num_movies} movies')
 		except Exception as e:
 			print('populate_movie: movie insertion: exception:',repr(e))
 			conn.rollback()
@@ -548,8 +566,9 @@ create table plan
 );
 """
 def populate_plan(conn):
+	print('populate: `plan`...', end=' ', flush=True)
 	plans = ('basic','plus','premium')
-	months = (3,6,12)
+	months = (f'{m} months' for m in (3,6,12))
 	prices = (100,185,350)
 	with conn.cursor() as cur:
 		try:
@@ -563,6 +582,7 @@ def populate_plan(conn):
 				(plan, str(length), str(price))
 				)
 			conn.commit()
+			printc('g',f'successfully inserted 3 plans')
 		except Exception as e:
 			print('populate plan: insert plans: exception:',repr(e))
 			conn.rollback()
@@ -695,18 +715,20 @@ create table review
 );
 """
 def populate_review(conn):
+	print('populate: `review`...', end=' ', flush=True)
 	with conn.cursor() as cur:
 		try:
 			# user cannot review a movie before the first watch event
 			cur.execute(
 			"""
-			SELECT user_id, movie_id, MIN(watch_time) FROM history
+			SELECT user_id, movie_id, MIN(watch_date) FROM history
 			GROUP BY user_id,movie_id;
 			"""
 			)
 			# simplifying assumption: a user reviews a movie
 			# the first time he watches it
 			users_movies_dates = tuple(cur)
+# 			print(users_movies_dates[:4])
 			conn.commit()
 		except Exception as e:
 			print('populate review & movie ratings: select user ids: exception:',repr(e))
@@ -714,11 +736,12 @@ def populate_review(conn):
 			return
 	
 	# randomly choose half of available combinations
-	users, movies, dates = zip(*np.random.choice(
-		users_movies_dates,
+	c = np.random.choice(
+		np.arange(len(users_movies_dates)),
 		size = len(users_movies_dates)//2,
 		replace=False
-	).tolist())
+	)
+	users, movies, dates = zip(*(users_movies_dates[i] for i in c))
 	
 	# assume that probabilities of higher ratings are higher
 	# there's probably some fellow in the field of sociology who named a law after that
@@ -742,9 +765,11 @@ def populate_review(conn):
 		)
 		for user, movie, date, rating in zip(users, movies, dates, ratings)
 	]
-	
+	print(f'inserting {len(review_insert_list)} entries', flush=True)
 	with conn.cursor() as cur:
 		try:
+			cur.execute("SELECT COUNT(*) FROM review;")
+			update_progress(conn, 'review', next(cur)[0], insert_list=review_insert_list)
 			execute_batch(cur,
 				"""
 				INSERT INTO review
@@ -752,9 +777,10 @@ def populate_review(conn):
 				VALUES
 					(%s, %s, %s, %s, %s);
 				""",
-				review_insert_list
+				review_insert_list,
+				page_size = 100000
 			)
-			printc('g','populate review: inserted reviews')
+			printc('g',f'successfully inserted {len(review_insert_list)} reviews')
 			
 			# for prior version of schema
 			
@@ -777,10 +803,10 @@ def populate_review(conn):
 # 			printc('g','populate review: updated movie ratings')
 			
 			conn.commit()
-			printc('g','populate review: finished')
+# 			printc('g','populate review: finished')
 			
 		except Exception as e:
-			print('populate movie: movie insertion: exception:',repr(e))
+			print('populate review: insertion: exception:',repr(e))
 			conn.rollback()
 			return
 
@@ -796,6 +822,7 @@ create table studio
 );
 """
 def populate_studio(conn):
+	print('populate: `studio`...', end=' ', flush=True)
 	with conn.cursor() as cur:
 		try:
 			for i in range(10):
@@ -808,7 +835,7 @@ def populate_studio(conn):
 				 int(np.random.randint(3*10**9,10**10+1)))
 				)
 			conn.commit()
-			printc('g','studio table populated')
+			printc('g','successfully inserted 10 studios')
 		except Exception as e:
 			print('populate studio: insert studios: exception occurred:',repr(e))
 			conn.rollback()
@@ -829,12 +856,26 @@ create table subscription
             on delete cascade
 );
 """
+
+def _gen_user_subscription_hist(i,u,d,t, today, day, plans_lengths, nplans):
+	print(f'\x1b[2K\rbuilding subscriptions for user {i}/{t}', end='',flush=True)
+	start_date = d
+	dif = (dt.date.today() - start_date).days
+	plan,length = plans_lengths[np.random.randint(nplans)]
+# 	print('dif,length:',dif,length)
+	count = ceil(dif / length)
+	gen = (
+		(u, plan, d+(length*i)*day, d+(length*i)*day - dt.timedelta(int(np.random.randint(1,11))))
+		for i in range(count)
+	)
+	return gen
+
 def populate_subscription(conn):
+	print('populate: `subscription`...')
 	with conn.cursor() as cur:
 		try:
-			cur.execute(
-			"""
-			SELECT user_id, MIN(watch_time) FROM history
+			cur.execute("""
+			SELECT user_id, MIN(watch_date) FROM history
 			GROUP BY user_id;
 			""")
 			users,min_dates = zip(*cur)
@@ -846,8 +887,14 @@ def populate_subscription(conn):
 	
 	with conn.cursor() as cur:
 		try:
-			cur.execute("SELECT name,30*EXTRACT(month from month_length) FROM plan;")
+			cur.execute("""
+			SELECT
+				name,
+				365 * EXTRACT(year from month_length)
+					+ 30*EXTRACT(month from month_length)
+			FROM plan;""")
 			plans_lengths = tuple(cur)
+			nplans = len(plans_lengths)
 			conn.commit()
 		except Exception as e:
 			print('populate subscription: select plans: exception:',repr(e))
@@ -858,20 +905,27 @@ def populate_subscription(conn):
 	# for each user, his history starts from the first date he watched a movie
 	# purchase date for any subscription is set to some
 	# random time between 1 and 10 days before its start date
-	subscription_insert_list = []
-	for u,d in zip(users,min_dates):
-		start_date = d
-		while True:
-			plan,length = np.random.choice(plans_lengths)
-			end_date = start_date + length
-			purchased_date = start_date - int(np.random.randint(1,11))
-			subscription_insert_list.append((u,plan,start_date,purchased_date))
-			start_date = end_date+1
-			if start_date > dt.date.today():
-				break
+	# very simplistic: for ease of calculating within given time frame,
+	# assume each user selects a particular plan over and over again
+	today = dt.date.today()
+	day = dt.timedelta(1)
+	t = len(users)
 	
+	subscription_insert_list = list(it.chain.from_iterable(
+		_gen_user_subscription_hist(i,u,d,t, today, day, plans_lengths, nplans)
+		for i,(u,d) in enumerate(zip(users,min_dates))
+	))
+	
+	print('subscription_insert_list:',subscription_insert_list[:4])
+	
+	print('\x1b[2K\r',end='',flush=True)
+	print('\n')
+	
+	print(f'inserting {len(subscription_insert_list)} entries')
 	with conn.cursor() as cur:
 		try:
+			cur.execute("SELECT COUNT(*) FROM subscription;")
+			update_progress(conn, 'subscription', next(cur)[0], insert_list=subscription_insert_list)
 			execute_batch(cur,
 			"""
 			INSERT INTO subscription
@@ -879,7 +933,7 @@ def populate_subscription(conn):
 			VALUES (%s, %s, %s, %s);
 			""",
 			subscription_insert_list,
-			page_size = 1000
+			page_size = 100000
 			)
 			printc('g',f'successfully inserted {len(subscription_insert_list)} subscriptions')
 			conn.commit()
@@ -926,7 +980,8 @@ def populate_users(conn):
 	
 	with conn.cursor() as cur:
 		try:
-			update_progress(conn, 'users', insert_list = user_insert_list)
+			cur.execute("SELECT COUNT(*) FROM users;")
+			update_progress(conn, 'users', next(cur)[0], insert_list = user_insert_list)
 			execute_batch(cur,
 			"""
 			INSERT INTO users
@@ -934,9 +989,9 @@ def populate_users(conn):
 			VALUES (%s, %s, %s, %s, %s);
 			""",
 			user_insert_list,
-			page_size = 1000
+			page_size = 10000
 			)
-			printc('g',f'successfully insert {count} users')
+			printc('g',f'successfully inserted {count} users')
 			conn.commit()
 		except Exception as e:
 			print('populate users: insert users: exception:',repr(e))
@@ -974,7 +1029,7 @@ if __name__ == '__main__':
 		"SELECT setval('users_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM users),false);",
 		"SELECT setval('movie_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM movie),false);",
 		"SELECT setval('actor_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM actor),false);",
-		"SELECT setval('director_id_seq',(SELECT COALESCE(MAX(id)+1,0) FROM director),false);"
+		"SELECT setval('director_id_seq',(SELECT COALESCE(MAX(id),0)+1 FROM director),false);"
 	)
 	with conn.cursor() as cur:
 		try:
@@ -988,7 +1043,7 @@ if __name__ == '__main__':
 			conn.close()
 			sys.exit()
 	
-	populate_actor(conn)
+	"""populate_actor(conn)
 	populate_director(conn)
 # 	populate_genre(conn) # (removed)
 	populate_plan(conn)
@@ -997,10 +1052,10 @@ if __name__ == '__main__':
 	
 	populate_movie(conn)
 # 	populate_produce() # (not used)
-	populate_act(conn)					## CHECK WHEN 'if_main' type changed
-	populate_history(conn)				## CHECK WHEN 'is_finished' type changed
+	populate_act(conn)
+	populate_history(conn)
 # 	populate_progress(conn) # (removed)
-	populate_review(conn)
+	populate_review(conn)"""
 	populate_subscription(conn)
 	
 	print('all tables filled; exiting')
