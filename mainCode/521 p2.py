@@ -804,58 +804,6 @@ def leave_a_review(conn):
             print('leave_a_review: exception:', repr(e))
 
 
-# def sign_user_up_for_plan_today(conn):
-#     """Sign a user up for a plan that starts today. Requires that
-#     an existing user and plan name are entered, and that the user does
-#     not have a subscription currently in progress."""
-#     
-#     id, name = menu_selections('user id', 'subscription plan name')
-#     date = dt.date.today()
-# 
-#     with conn.cursor() as cur:
-#         try:
-#             cur.execute('SELECT id from users where id=%s;',(id,))
-#             if next(cur, None) is None:
-#                 printc('r',f'user `{user_id}` does not exist; aborting')
-#                 return
-#             cur.execute('SELECT name from plan where name=%s;',(name,))
-#             if next(cur, None) is None:
-#                 printc('r',f'plan `{name}` does not exist; aborting')
-#                 return
-#             
-#             cur.execute(
-#             """
-#             SELECT *
-#             FROM subscription S JOIN plan P ON (S.plan_name = P.name)
-#             WHERE
-#                 user_id = %s AND
-#                 start_date <= CURRENT_DATE AND
-#                 start_date + month_length >= CURRENT_DATE;
-#             """,
-#                 (id,)
-#             )
-#             if next(cur, None) is not None:
-#                 raise ValueError(
-#                     f'cannot sign up user {id} for new subscription plan starting today; '
-#                     'that user\'s current subscription has not ended'
-#                 )
-#         except Exception as e:
-#             print('sign_user_up_for_plan_today: error:', repr(e))
-#             return
-# 
-#     with conn.cursor() as cur:
-#         try:
-#             cur.execute(
-#             """
-#             INSERT INTO subscription
-#                 (user_id, plan_name, start_date, purchased_date)
-#             VALUES (%s, %s, %s,CURRENT_DATE);
-#             """,
-#                 (id, name, date)
-#             )
-#         except Exception as e:
-#             print('sign_user_up_for_plan_today: error occcured:', repr(e))
-
 
 def sign_user_up_for_future_plan(conn):
     """Sign a user up for a plan that starts at some future date. Requires that
@@ -1105,7 +1053,6 @@ _func_mapping = {
         subscription_history,
         get_user_current_subscription_window,
         leave_a_review,
-#         sign_user_up_for_plan_today,
         sign_user_up_for_future_plan,
         add_user,
         remove_user,
