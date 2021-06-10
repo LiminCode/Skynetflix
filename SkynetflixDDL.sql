@@ -6,6 +6,8 @@ create table plan
     total_price     numeric(15,2),
     primary key (name)
 );
+
+-- test--
 --
 DROP TABLE IF EXISTS director CASCADE;
 create table director
