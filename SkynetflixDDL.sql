@@ -8,7 +8,7 @@ create table plan
 );
 
 -- test--
---
+-- test pull request--
 DROP TABLE IF EXISTS director CASCADE;
 create table director
 (
